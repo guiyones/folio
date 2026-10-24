@@ -1,0 +1,10 @@
+# Certificados e segredos nunca entram no repositório.
+*.pfx
+*.p12
+.env
+mise.local.toml
+
+# Saída do folio consulta.
+out/
+
+.superpowers/
