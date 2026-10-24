@@ -60,3 +60,57 @@ CREATE TABLE certificates (
 
 	PRIMARY KEY (account_id)
 );
+
+-- Version: 1.02
+-- Description: Create documents, notes and events
+CREATE SEQUENCE note_seq;
+
+CREATE TABLE dfe_docs (
+	id          UUID        NOT NULL,
+	account_id  UUID        NOT NULL REFERENCES accounts (id),
+	nsu         BIGINT      NOT NULL,
+	schema      TEXT        NOT NULL,
+	xml         BYTEA       NOT NULL,
+	received_at TIMESTAMPTZ NOT NULL,
+
+	PRIMARY KEY (id),
+	CONSTRAINT dfe_docs_nsu_key UNIQUE (account_id, nsu)
+);
+
+CREATE TABLE notes (
+	id               UUID        NOT NULL,
+	account_id       UUID        NOT NULL REFERENCES accounts (id),
+	key              CHAR(44)    NOT NULL,
+	emit_cnpj        TEXT        NOT NULL DEFAULT '',
+	emit_name        TEXT        NOT NULL DEFAULT '',
+	total_cents      BIGINT      NOT NULL DEFAULT 0,
+	issued_at        TIMESTAMPTZ,
+	status           TEXT        NOT NULL CHECK (status IN ('resumo', 'completa', 'cancelada')),
+	summary_doc_id   UUID        REFERENCES dfe_docs (id),
+	full_doc_id      UUID        REFERENCES dfe_docs (id),
+	ciencia          TEXT        NOT NULL DEFAULT 'pendente' CHECK (ciencia IN ('pendente', 'feita', 'falhou', 'nao_aplica')),
+	ciencia_attempts INT         NOT NULL DEFAULT 0,
+	ciencia_next_at  TIMESTAMPTZ,
+	seq              BIGINT      NOT NULL,
+
+	PRIMARY KEY (id),
+	CONSTRAINT notes_key_key UNIQUE (account_id, key)
+);
+
+CREATE INDEX notes_account_seq ON notes (account_id, seq);
+
+CREATE TABLE note_events (
+	id          UUID        NOT NULL,
+	note_id     UUID        NOT NULL REFERENCES notes (id),
+	type        TEXT        NOT NULL,
+	seq         INT         NOT NULL,
+	description TEXT        NOT NULL DEFAULT '',
+	at          TIMESTAMPTZ NOT NULL,
+	origin      TEXT        NOT NULL CHECK (origin IN ('sefaz', 'folio')),
+	cstat       TEXT        NOT NULL DEFAULT '',
+	doc_id      UUID        REFERENCES dfe_docs (id),
+	xml         BYTEA,
+
+	PRIMARY KEY (id),
+	CONSTRAINT note_events_key UNIQUE (note_id, type, seq, origin)
+);
