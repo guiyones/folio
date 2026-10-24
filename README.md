@@ -43,7 +43,7 @@ export FOLIO_CERT_KEY=$(openssl rand -base64 32)   # guarde este valor
 go run ./cmd/folio admin migrate
 go run ./cmd/folio admin client-create --name cadim             # imprime o ID do cliente
 go run ./cmd/folio admin key-create --client <cliente>          # a chave aparece uma vez só
-go run ./cmd/folio admin account-create --client <cliente> --name Franquia --cnpj 63455108000199 --uf 41 --env 2
+go run ./cmd/folio admin account-create --client <cliente> --name Franquia --cnpj 11222333000181 --uf 41 --env 2
 go run ./cmd/folio admin cert-upload --account <conta> --pfx certificado.pfx
 
 go run ./cmd/folio serve
