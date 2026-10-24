@@ -2,7 +2,9 @@
 
 > **Para agentes:** SUB-SKILL OBRIGATÓRIA: use superpowers:subagent-driven-development (recomendado) ou superpowers:executing-plans para implementar este plano tarefa por tarefa. Os passos usam checkbox (`- [ ]`) para acompanhamento.
 >
-> **Divisão do trabalho (decidida em 2026-10-24):**
+> **Estado em 2026-10-24:** o Claude executou o plano inteiro, a pedido do dono. Ficam abertas só as provas contra a SEFAZ de verdade (Tarefa 4, passos 2 e 3; Tarefa 10, passo 5), que dependem de um certificado real. O registro de execução, no fim do plano, lista as decisões tomadas no caminho.
+>
+> **Divisão do trabalho (decidida em 2026-10-24, depois substituída):**
 > - **O dono do produto escreve o núcleo da SEFAZ em `dfe/`:** Tarefa 1 (passos 3 a 6, o `LoadPFX`), Tarefa 2, Tarefa 3 e Tarefa 10. O Claude revisa cada uma.
 > - **O Claude escreve o resto:** o repositório e os auxiliares de teste em `dfe/dfetest/`, e as Tarefas 4 a 9, 11, 12 e 13.
 > - **`dfe/env.go`:** o Claude criou só o tipo `Env` da Tarefa 2, porque as contas dependem dele.
@@ -92,7 +94,7 @@ folio/
 
 **Por quê:** tudo depende do certificado. Ele abre a conexão mTLS, assina o evento e diz de qual CNPJ ele é. No e-CNPJ ICP-Brasil, o CNPJ fica no SubjectAltName, num `otherName` com OID `2.16.76.1.3.3`.
 
-- [ ] **Passo 1: criar o repositório.**
+- [x] **Passo 1: criar o repositório.**
   - `git init`, criar o `go.mod` e o `mise.toml`.
   - Criar o `.gitignore` com `*.pfx`, `*.p12`, `.env` e `out/`.
   - Criar o compose com um `postgres:18-alpine` na porta 5452 (para não brigar com o Cadim, que usa 5442) e senha `postgres`.
@@ -102,7 +104,7 @@ folio/
   - Gera uma chave RSA de 2048 bits e um certificado autoassinado com CN `EMPRESA TESTE:<cnpj>`.
   - O SubjectAltName tem um `otherName` com OID `2.16.76.1.3.3` e o valor `<cnpj>` como `OCTET STRING`, montado com `encoding/asn1` em `ExtraExtensions`.
   - Empacota tudo em PFX com `pkcs12.Modern.Encode` e a senha `"teste"`.
-- [ ] **Passo 3: escrever os testes que falham.**
+- [x] **Passo 3: escrever os testes que falham.**
 
 ```go
 func TestLoadPFX(t *testing.T) {
@@ -116,13 +118,13 @@ func TestLoadPFXGarbage(t *testing.T)       { /* []byte("não sou pfx") dá erro
 func TestLoadPFXNoCNPJ(t *testing.T)        { /* certificado sem o OID e sem ":<14 dígitos>" no CN dá errors.Is(err, dfe.ErrNoCNPJ) */ }
 ```
 
-- [ ] **Passo 4:** rodar `go test ./dfe/ -run LoadPFX`. Tem que FALHAR, porque `LoadPFX` ainda não existe.
-- [ ] **Passo 5: implementar `LoadPFX`.**
+- [x] **Passo 4:** rodar `go test ./dfe/ -run LoadPFX`. Tem que FALHAR, porque `LoadPFX` ainda não existe.
+- [x] **Passo 5: implementar `LoadPFX`.**
   - Usar `pkcs12.DecodeChain`.
   - O CNPJ sai primeiro do OID `2.16.76.1.3.3` e, se ele não existir, do sufixo `:<14 dígitos>` do CN.
   - `Holder` é o CN sem esse sufixo.
-- [ ] **Passo 6:** rodar `go test ./dfe/`. Tem que PASSAR.
-- [ ] **Passo 7: commit:** `feat: repositório e leitura do certificado A1`.
+- [x] **Passo 6:** rodar `go test ./dfe/`. Tem que PASSAR.
+- [x] **Passo 7: commit:** `feat: repositório e leitura do certificado A1`.
 
 ### Tarefa 2: Cliente SOAP e consulta por NSU
 
@@ -156,7 +158,7 @@ func TestLoadPFXNoCNPJ(t *testing.T)        { /* certificado sem o OID e sem ":<
 - **Como achar o retorno:** ler pelo nome local do elemento, sem amarrar o caminho inteiro de namespaces do envelope.
 
 - [x] **Passo 1: escrever a SEFAZ falsa.** Feito pelo Claude, em `dfe/dfetest/server.go`.
-- [ ] **Passo 2: escrever os testes que falham.**
+- [x] **Passo 2: escrever os testes que falham.**
 
 ```go
 func TestDistNSUDocs(t *testing.T) {
@@ -174,13 +176,13 @@ func TestDistNSUTimeout(t *testing.T)     { /* o handler dorme mais que WithTime
 func TestDistNSUNeedsClientCert(t *testing.T) { /* a SEFAZ falsa recebeu um certificado de cliente (r.TLS.PeerCertificates não está vazio) */ }
 ```
 
-- [ ] **Passo 3:** rodar `go test ./dfe/ -run DistNSU`. Tem que FALHAR.
-- [ ] **Passo 4: implementar `NewClient` e `DistNSU`.**
+- [x] **Passo 3:** rodar `go test ./dfe/ -run DistNSU`. Tem que FALHAR.
+- [x] **Passo 4: implementar `NewClient` e `DistNSU`.**
   - `NewClient` monta um `http.Client` com `tls.Config{Certificates: []tls.Certificate{cert.TLS}, RootCAs: roots, MinVersion: tls.VersionTLS12}`.
   - Montar o XML com `encoding/xml` ou com um template de texto. Os valores são todos números, e o CNPJ é validado como 14 dígitos antes.
   - Descompactar com `compress/gzip`.
-- [ ] **Passo 5:** rodar `go test ./dfe/`. Tem que PASSAR.
-- [ ] **Passo 6: commit:** `feat: consulta NFeDistribuicaoDFe por NSU`.
+- [x] **Passo 5:** rodar `go test ./dfe/`. Tem que PASSAR.
+- [x] **Passo 6: commit:** `feat: consulta NFeDistribuicaoDFe por NSU`.
 
 ### Tarefa 3: Ler resumos, notas e eventos
 
@@ -201,7 +203,7 @@ func TestDistNSUNeedsClientCert(t *testing.T) { /* a SEFAZ falsa recebeu um cert
 
 **Por quê:** a varredura precisa saber o que é cada documento sem conhecer XML. Os valores em dinheiro viram centavos inteiros (`"1234.50"` vira `123450`), para não ter arredondamento de float.
 
-- [ ] **Passo 1: escrever os testes que falham.**
+- [x] **Passo 1: escrever os testes que falham.**
 
 ```go
 func TestKindOf(t *testing.T) { /* "resNFe_v1.01.xsd" dá KindSummary; "procNFe_v4.00.xsd" dá KindFull; "xyz.xsd" dá ErrUnknownSchema */ }
@@ -214,10 +216,10 @@ func TestParseEventCancel(t *testing.T) { /* Type "110111"; Seq 1; Key igual */ 
 func TestParseCents(t *testing.T)       { /* "0.10" dá 10; "5" dá 500; "1.5" dá 150; "abc" dá erro; "1.234" dá erro */ }
 ```
 
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar com `encoding/xml`, usando structs com só os campos usados.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR.
-- [ ] **Passo 5: commit:** `feat: leitura de resumo, nota completa e eventos`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar com `encoding/xml`, usando structs com só os campos usados.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR.
+- [x] **Passo 5: commit:** `feat: leitura de resumo, nota completa e eventos`.
 
 ### Tarefa 4: `folio consulta` e prova na SEFAZ
 
@@ -234,14 +236,14 @@ func TestParseCents(t *testing.T)       { /* "0.10" dá 10; "5" dá 500; "1.5" d
 
 **Saída:** uma linha com cStat, motivo, ultNSU e maxNSU. Depois, uma linha por documento com NSU, tipo, chave, emitente e valor. Cada XML é gravado em `<out>/<nsu>-<tipo>.xml`. Chama a SEFAZ **uma vez só**, sem repetir.
 
-- [ ] **Passo 1:** implementar. O modo é escolhido por `os.Args[1]`, e cada modo tem o próprio `flag.FlagSet`. Um modo desconhecido mostra o uso e sai com código 2.
+- [x] **Passo 1:** implementar. O modo é escolhido por `os.Args[1]`, e cada modo tem o próprio `flag.FlagSet`. Um modo desconhecido mostra o uso e sai com código 2.
 - [ ] **Passo 2: provar em homologação** com o certificado do Leandro, quando ele liberar, ou com um seu.
   - Esperado: cStat `137`, ou `138` se houver algo, e nenhum erro de TLS ou de leitura.
   - Se der `x509: certificate signed by unknown authority`, baixe a cadeia da AC da SEFAZ, aponte o `FOLIO_SEFAZ_CA` para ela e repita. Não use `InsecureSkipVerify`.
 - [ ] **Passo 3: provar em produção (`--amb 1`)**, uma vez, com o script do Leandro pausado e longe da rodada de hora em hora dele.
   - Esperado: as notas dele aparecem.
   - Anote o cStat e o `ultNSU` no README, sem a chave de nenhuma nota.
-- [ ] **Passo 4: commit:** `feat: comando folio consulta`.
+- [x] **Passo 4: commit:** `feat: comando folio consulta`.
 
 **Ponto de checagem:** com isso a parte mais arriscada (certificado, TLS, SOAP) está provada. Se algo aqui obrigar a mudar o design, pare e reveja a spec antes da Fase 2.
 
@@ -272,7 +274,7 @@ func TestParseCents(t *testing.T)       { /* "0.10" dá 10; "5" dá 500; "1.5" d
 - [x] **Passo 2:** rodar os testes. Têm que FALHAR.
 - [x] **Passo 3:** implementar com `crypto/aes`, `crypto/cipher` e `crypto/rand`.
 - [x] **Passo 4:** rodar os testes. Têm que PASSAR.
-- [ ] **Passo 5: commit:** `feat: cofre AES-GCM para o certificado`.
+- [x] **Passo 5: commit:** `feat: cofre AES-GCM para o certificado`.
 
 ### Tarefa 6: Banco, contas e certificados
 
@@ -329,7 +331,7 @@ CREATE TABLE certificates (account_id UUID PRIMARY KEY REFERENCES accounts(id), 
 - [x] **Passo 2:** `make dev-up`, depois rodar os testes. Têm que FALHAR.
 - [x] **Passo 3:** implementar.
 - [x] **Passo 4:** rodar os testes. Têm que PASSAR.
-- [ ] **Passo 5: commit:** `feat: contas e certificados no Postgres`.
+- [x] **Passo 5: commit:** `feat: contas e certificados no Postgres`.
 
 ### Tarefa 7: Comando `admin`
 
@@ -363,7 +365,7 @@ CREATE TABLE certificates (account_id UUID PRIMARY KEY REFERENCES accounts(id), 
   - `ErrExpired`, quando `NotAfter` é anterior a `now`.
 - Sela o PFX e a senha e grava.
 
-- [ ] **Passo 1: escrever os testes que falham.**
+- [x] **Passo 1: escrever os testes que falham.**
   - `TestCreateKeyAndLookup`: a chave devolvida acha o cliente, uma chave alterada não acha, e uma chave revogada não acha.
   - `TestKeyStoredHashed`: a coluna `hash` não contém o texto da chave.
   - Em `account`:
@@ -372,10 +374,10 @@ CREATE TABLE certificates (account_id UUID PRIMARY KEY REFERENCES accounts(id), 
     - `TestUploadWrongPassword`: dá `errors.Is(err, dfe.ErrBadPassword)`.
     - `TestUploadOK`: depois de abrir o selado com o `Box`, o PFX é igual ao original.
     - `TestUploadStoredSealed`: lendo a coluna `pfx` direto no banco, ela não é igual ao PFX original.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar o `apiclient`, o envio do certificado e o `admin`.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR. Depois, à mão: criar um cliente, uma chave e uma conta de homologação, e subir o seu certificado.
-- [ ] **Passo 5: commit:** `feat: comando admin, chaves de API e envio de certificado`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar o `apiclient`, o envio do certificado e o `admin`.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR. Depois, à mão: criar um cliente, uma chave e uma conta de homologação, e subir o seu certificado.
+- [x] **Passo 5: commit:** `feat: comando admin, chaves de API e envio de certificado`.
 
 ### Tarefa 8: Documentos, notas e cursor
 
@@ -417,7 +419,7 @@ CREATE TABLE note_events (id UUID PRIMARY KEY, note_id UUID NOT NULL REFERENCES 
 - `NotesAfter(ctx, accountID uuid.UUID, after int64, limit int) ([]NoteRow, error)`. Usa `WHERE account_id = $1 AND seq > $2 ORDER BY seq LIMIT $3`, e o `limit` fica entre 1 e 500. `NoteRow` tem os campos de `notes` e mais `HasFull bool`.
 - `NoteForClient(ctx, clientID, noteID) (NoteRow, error)`, que dá `note.ErrNotFound` para nota de conta de outro cliente, `NoteXML(ctx, noteID) (xml []byte, kind string, err error)` (o completo se houver, senão o resumo) e `NoteEvents(ctx, noteID)`.
 
-- [ ] **Passo 1: escrever os testes que falham.**
+- [x] **Passo 1: escrever os testes que falham.**
   - `TestSummaryThenFull`: o `seq` cresce a cada mudança, o `status` vai de `resumo` para `completa` e `HasFull` fica verdadeiro.
   - `TestFullThenSummary`: continua `completa`, e a `ciencia` é `nao_aplica`.
   - `TestCancelSticks`: depois do cancelamento, um `ApplyFull` não tira o `cancelada`.
@@ -425,10 +427,10 @@ CREATE TABLE note_events (id UUID PRIMARY KEY, note_id UUID NOT NULL REFERENCES 
   - `TestCienciaCutoff`: uma nota emitida antes do corte fica `nao_aplica`, uma emitida depois fica `pendente`, e com `auto=false` fica `nao_aplica`.
   - `TestNotesAfter`: o cursor só traz o que mudou, e o limite é respeitado.
   - `TestNoteForOtherClient`: dá `ErrNotFound`.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar com `INSERT ... ON CONFLICT (account_id, key) DO UPDATE`. As regras de situação vão num `CASE` no próprio SQL.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR.
-- [ ] **Passo 5: commit:** `feat: documentos, notas e cursor de mudanças`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar com `INSERT ... ON CONFLICT (account_id, key) DO UPDATE`. As regras de situação vão num `CASE` no próprio SQL.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR.
+- [x] **Passo 5: commit:** `feat: documentos, notas e cursor de mudanças`.
 
 ### Tarefa 9: Varredura
 
@@ -464,7 +466,7 @@ CREATE TABLE note_events (id UUID PRIMARY KEY, note_id UUID NOT NULL REFERENCES 
 4. **Fim das páginas.** Se as `MaxPages` acabaram com o `ult` ainda abaixo do `max`, encerra com `next = now`, e o próximo tick continua.
 5. **Fechamento.** `FinishScan` e commit.
 
-- [ ] **Passo 1: escrever os testes que falham**, com uma SEFAZ falsa em memória que segue um roteiro de respostas e um relógio fixo.
+- [x] **Passo 1: escrever os testes que falham**, com uma SEFAZ falsa em memória que segue um roteiro de respostas e um relógio fixo.
   - `TestScanPagesUntilMax`: com respostas `138` (ult 2, max 4) e depois `138` (ult 4, max 4), são duas chamadas, o `ult_nsu` termina em 4 e o `next_scan_at` é `now+1h`.
   - `TestScan137Waits`: um `137` dá `next = now+1h` e uma chamada só.
   - `TestScan656Waits`: igual, e o `last_cstat` fica `"656"`.
@@ -474,10 +476,10 @@ CREATE TABLE note_events (id UUID PRIMARY KEY, note_id UUID NOT NULL REFERENCES 
   - `TestScanExpiredCert`: zero chamadas à SEFAZ e `last_message` igual a "certificado vencido".
   - `TestScanSkipsPausedAndNotDue`: `RunOnce` devolve `false`.
   - `TestScanLockSerializes`: duas goroutines chamam `RunOnce` ao mesmo tempo para uma conta só. Uma delas devolve `false`, e a SEFAZ falsa recebe uma rodada só.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar. No `serve.go`, ler `FOLIO_DB_URL` e `FOLIO_CERT_KEY`, rodar `Migrate`, depois `Loop(ctx, Tick)`, e parar no `SIGINT`/`SIGTERM` com `signal.NotifyContext`.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR. Depois, à mão, `folio serve` com a conta de homologação: a varredura roda uma vez e espera uma hora.
-- [ ] **Passo 5: commit:** `feat: varredura com limite de uma hora e trava por conta`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar. No `serve.go`, ler `FOLIO_DB_URL` e `FOLIO_CERT_KEY`, rodar `Migrate`, depois `Loop(ctx, Tick)`, e parar no `SIGINT`/`SIGTERM` com `signal.NotifyContext`.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR. Depois, à mão, `folio serve` com a conta de homologação: a varredura roda uma vez e espera uma hora.
+- [x] **Passo 5: commit:** `feat: varredura com limite de uma hora e trava por conta`.
 
 ---
 
@@ -515,21 +517,21 @@ CREATE TABLE note_events (id UUID PRIMARY KEY, note_id UUID NOT NULL REFERENCES 
 
 **Por quê:** a mesma assinatura vai servir para a NF-e e a NFC-e depois. O teste que vale é o de ida e volta, que assina e verifica de forma independente. A prova final é a SEFAZ de homologação aceitar a assinatura: ela responde que a nota não existe, mas não responde `297`, que é assinatura inválida.
 
-- [ ] **Passo 1: escrever os testes que falham.**
+- [x] **Passo 1: escrever os testes que falham.**
   - `TestSignRoundTrip`: assinar um `envEvento` e `VerifyEnveloped` passa.
   - `TestSignTamperFails`: trocar um dígito da chave depois de assinar faz `VerifyEnveloped` falhar.
   - `TestSignDeterministic`: a mesma entrada e a mesma chave dão o mesmo `SignatureValue`, porque a RSA PKCS#1 v1.5 é determinística.
   - `TestCiencia135`, `TestCiencia573Duplicate` e `TestCiencia297Rejected`, todos contra a SEFAZ falsa. O teste do 297 dá `errors.As(err, &RejectedError)` com `CStat` `"297"`.
   - `TestCienciaBody`: o corpo enviado tem `Id="ID210210<chave>01"`, `<cOrgao>91</cOrgao>` e passa no `VerifyEnveloped`.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3: implementar.**
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3: implementar.**
   - Decida entre usar o `github.com/russellhaering/goxmldsig` ou escrever a canonicalização para este formato fixo.
   - Se for usar a biblioteca, verifique que o resultado bate com o C14N inclusivo e que a assinatura fica no lugar que a SEFAZ espera.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR.
 - [ ] **Passo 5: provar em homologação.** Rodar uma Ciência com uma chave qualquer de 44 dígitos.
   - Esperado: uma rejeição diferente de `297`, o que prova que a assinatura foi aceita.
   - Anote o cStat no README.
-- [ ] **Passo 6: commit:** `feat: assinatura XML-DSig e evento de Ciência da Operação`.
+- [x] **Passo 6: commit:** `feat: assinatura XML-DSig e evento de Ciência da Operação`.
 
 ### Tarefa 11: Ciência na varredura
 
@@ -556,16 +558,16 @@ CREATE TABLE note_events (id UUID PRIMARY KEY, note_id UUID NOT NULL REFERENCES 
 
 **Guardar o XML do evento:** acrescente à migração 1.03 a coluna `note_events.xml BYTEA`, que pode ser nula, e grave o `EventResult.XML` nela.
 
-- [ ] **Passo 1: escrever os testes que falham.**
+- [x] **Passo 1: escrever os testes que falham.**
   - `TestScanSendsCiencia`: um resumo novo pendente gera uma chamada `Ciencia`, a nota fica `feita` e o evento tem `origin` `folio`.
   - `TestScanCienciaDuplicateIsSuccess`.
   - `TestScanCienciaRetries`: a quinta falha deixa a nota em `falhou`. Entre as falhas, a Ciência só é tentada de novo depois do `ciencia_next_at`.
   - `TestScanCienciaFailureKeepsScan`: o `ult_nsu` avança mesmo com a Ciência falhando.
   - `TestScanNoCienciaBeforeCutoff`: uma nota antiga não gera chamada.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR.
-- [ ] **Passo 5: commit:** `feat: Ciência da Operação automática na varredura`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR.
+- [x] **Passo 5: commit:** `feat: Ciência da Operação automática na varredura`.
 
 ---
 
@@ -630,8 +632,8 @@ generate:
   - Mais `certificate`, que é `null` ou `{holder, cnpj, not_after, uploaded_at, expiring_soon, expired}`. O `expiring_soon` é verdadeiro quando faltam `CertWarn` ou menos.
   - Datas em RFC 3339.
 
-- [ ] **Passo 0: escrever o `openapi.yaml` inteiro** (contas e notas) e o `oapi.yaml`, e rodar `make generate`. Esperado: `gen/api.gen.go` compila. Se o contrato tiver erro, o gerador recusa.
-- [ ] **Passo 1: escrever os testes que falham**, com `httptest`, banco de teste e um relógio fixo.
+- [x] **Passo 0: escrever o `openapi.yaml` inteiro** (contas e notas) e o `oapi.yaml`, e rodar `make generate`. Esperado: `gen/api.gen.go` compila. Se o contrato tiver erro, o gerador recusa.
+- [x] **Passo 1: escrever os testes que falham**, com `httptest`, banco de teste e um relógio fixo.
   - `TestAuthMissing` e `TestAuthRevoked` respondem 401.
   - `TestAccountsOnlyOwn`: o cliente A não vê a conta do B, e o `GET` da conta do B dá 404.
   - `TestCertificateUploadOK`, `TestCertificateUploadMismatch` (422, sem a senha no corpo), `TestCertificateUploadWrongPassword` (422) e `TestCertificateTooBig` (413 ou 422).
@@ -640,10 +642,10 @@ generate:
   - `TestExpiringSoon`: com um certificado que vence em 10 dias, `expiring_soon` é verdadeiro.
   - `TestUnknownRoute404` e `TestBadUUID400`: o corpo é sempre `Error`.
   - `TestPanicIs500`: um handler que entra em pânico devolve 500 `{"error":"erro interno"}`.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar os métodos de contas do `StrictServerInterface`. Os métodos de notas devolvem 501 por enquanto e ficam para a Tarefa 13.
-- [ ] **Passo 4:** rodar os testes. Têm que PASSAR.
-- [ ] **Passo 5: commit:** `feat: contrato OpenAPI e API de contas com chave por cliente`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar os métodos de contas do `StrictServerInterface`. Os métodos de notas devolvem 501 por enquanto e ficam para a Tarefa 13.
+- [x] **Passo 4:** rodar os testes. Têm que PASSAR.
+- [x] **Passo 5: commit:** `feat: contrato OpenAPI e API de contas com chave por cliente`.
 
 ### Tarefa 13: Notas, XML, eventos e Ciência à mão
 
@@ -664,16 +666,16 @@ generate:
   - Em qualquer outro caso, responde `409` com o motivo.
   - Mexe no `seq`, então precisa rodar com a trava da conta. Para isso, acrescente `account.(*Store).Lock(ctx, tx *sqlx.Tx, id uuid.UUID) error`, que faz `SELECT ... FROM accounts WHERE id = $1 FOR UPDATE`. O handler abre a transação com `db.WithTx`, trava a conta e chama `note.(*Store).RequestCiencia(ctx, tx, noteID)`.
 
-- [ ] **Passo 1: escrever os testes que falham.**
+- [x] **Passo 1: escrever os testes que falham.**
   - `TestNotesCursor`: com 3 notas, `limit=2` traz 2, e `after=next_after` traz a última.
   - `TestNotesOtherClient`: 404.
   - `TestNoteXMLFullOverSummary`: devolve o completo quando ele existe.
   - `TestManualCiencia`: 202 e a nota fica `pendente`. Com `auto_ciencia` ligada, dá 409.
   - `TestNotesBadLimit`: 400.
-- [ ] **Passo 2:** rodar os testes. Têm que FALHAR.
-- [ ] **Passo 3:** implementar. No README, apontar o `internal/httpapi/openapi.yaml` como a documentação da API, e descrever as variáveis de ambiente (`FOLIO_DB_URL`, `FOLIO_CERT_KEY`, `FOLIO_CERT_KEY_ID`, `FOLIO_ADDR`, `FOLIO_SEFAZ_CA`, `FOLIO_PFX_PASSWORD`), os modos do binário, como gerar a chave (`openssl rand -base64 32`) e o roteiro de uso: criar o cliente, a chave, a conta e o certificado, depois rodar o `serve` e consultar as notas.
-- [ ] **Passo 4:** rodar `make lint && make test`. Tudo tem que PASSAR.
-- [ ] **Passo 5: commit:** `feat: API de notas com cursor, XML, eventos e Ciência à mão`.
+- [x] **Passo 2:** rodar os testes. Têm que FALHAR.
+- [x] **Passo 3:** implementar. No README, apontar o `internal/httpapi/openapi.yaml` como a documentação da API, e descrever as variáveis de ambiente (`FOLIO_DB_URL`, `FOLIO_CERT_KEY`, `FOLIO_CERT_KEY_ID`, `FOLIO_ADDR`, `FOLIO_SEFAZ_CA`, `FOLIO_PFX_PASSWORD`), os modos do binário, como gerar a chave (`openssl rand -base64 32`) e o roteiro de uso: criar o cliente, a chave, a conta e o certificado, depois rodar o `serve` e consultar as notas.
+- [x] **Passo 4:** rodar `make lint && make test`. Tudo tem que PASSAR.
+- [x] **Passo 5: commit:** `feat: API de notas com cursor, XML, eventos e Ciência à mão`.
 
 ---
 
@@ -682,3 +684,21 @@ generate:
 - O projeto 2, o Cadim consumindo o folio, tem design próprio. Ele cobre o casamento de produtos, a categoria financeira, o catálogo e o planograma.
 - O folio entra em produção para o Leandro só quando o Cadim estiver pronto. Nesse dia, o script dele para de consultar a SEFAZ e a conta é criada com `--nsu 0`.
 - A emissão (NFC-e e NF-e) também terá um design próprio e vai reaproveitar `dfe.Certificate`, `NewClient` e `SignEnveloped`.
+
+---
+
+## Registro de execução (2026-10-24)
+
+O Claude executou o plano a pedido do dono, que estuda o núcleo `dfe/` pelo guia de estudo. As decisões abaixo mudaram ou completaram o plano. Cada uma diz o que foi decidido, por quê, e o custo se estiver errada.
+
+- **Savepoint por página na varredura.** O plano descartava a rodada inteira quando uma página falhava. Agora cada página grava sob um `SAVEPOINT`, e uma falha mantém as páginas anteriores com o NSU delas. *Por quê:* busca menos de novo e continua sem perder nota, porque documento e NSU andam juntos. *Se estiver errado:* nenhuma nota se perde; no máximo uma página é buscada de novo.
+- **cStat diferente de 137, 138 e 656.** O cStat e o motivo ficam registrados na conta, o `ult_nsu` não muda e a próxima varredura é em uma hora. *Por quê:* uma rejeição (CNPJ diferente do certificado, por exemplo) não melhora insistindo. *Se estiver errado:* demora uma hora para tentar de novo.
+- **`CienciaSent` e `CienciaFailed`** no lugar de `MarkCiencia(ok, …)`. *Por quê:* fica mais legível. *Se estiver errado:* nada muda no comportamento.
+- **`note_events.xml` já na migração 1.02.** A 1.03 não existe. *Por quê:* nada estava publicado ainda. *Se estiver errado:* nada.
+- **Validação do contrato com `ExcludeRequestBody`.** O validador confere a rota, os parâmetros e os formatos. O corpo multipart do certificado é lido e limitado pelo handler (1 MB para o arquivo e 2 MB para a requisição inteira). *Por quê:* a validação de multipart do kin-openapi é frágil. *Se estiver errado:* um corpo fora do contrato chega ao handler, que responde 400.
+- **IDs no caminho como `string` com `pattern`,** e não `format: uuid`. *Por quê:* `format: uuid` faria o gerador puxar o `google/uuid`, e a convenção é o `uuid` da biblioteca padrão. *Se estiver errado:* nada, porque o padrão é o mesmo.
+- **Ciência à mão.** Vale para conta com a Ciência automática desligada (nota em `nao_aplica`) e também para nota em `falhou`, mesmo com a automática ligada. Nota completa ou cancelada responde 409. *Por quê:* é o caso real de uma Ciência que falhou cinco vezes. *Se estiver errado:* basta tirar uma linha do `switch` em `RequestCiencia`.
+- **`dfe.ErrInvalidPFX`.** Arquivo que não é PFX vira um erro sentinela, e o handler devolve 422 sem comparar texto. *Por quê:* comparar a mensagem é frágil.
+- **Prefixo da chave de API com 12 caracteres** (`fk_` mais 9), com `UNIQUE`. *Por quê:* 8 caracteres deixavam só 5 aleatórios. *Se estiver errado:* nada.
+- **C14N própria** (`dfe/c14n.go`) em vez de biblioteca. É conferida contra o `xmllint --c14n`, e a assinatura inteira contra o `xmlsec1`. Os dois testes pulam se a ferramenta não estiver instalada. *Por quê:* o formato da NF-e é fixo, a canonicalização cabe em 250 linhas, e o dono quer entender cada byte. *Se estiver errado:* aparece como 297 na homologação, e o guia de estudo tem o roteiro de depuração.
+- **`docker compose` por padrão** no makefile, com `COMPOSE="podman compose"` para o podman. *Por quê:* a máquina de desenvolvimento só tem docker.
