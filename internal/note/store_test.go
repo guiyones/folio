@@ -315,3 +315,45 @@ func TestXMLSummaryOnly(t *testing.T) {
 		t.Errorf("note without docs: err = %v, want ErrNoXML", err)
 	}
 }
+
+func TestDeniedSummary(t *testing.T) {
+	f := setup(t)
+	n := sample()
+	n.Situation = dfe.Denied
+
+	f.summary(t, n, issued.Add(-time.Hour), true)
+	if got := f.only(t); got.Status != note.StatusDenied || got.Ciencia != note.CienciaNotApplicable {
+		t.Errorf("note = %+v", got)
+	}
+
+	f.full(t, sample())
+	if got := f.only(t); got.Status != note.StatusDenied {
+		t.Errorf("a full XML undid the denial: %+v", got)
+	}
+}
+
+func TestDeniedFull(t *testing.T) {
+	f := setup(t)
+	n := sample()
+	n.Situation = dfe.Denied
+
+	f.full(t, n)
+	if got := f.only(t); got.Status != note.StatusDenied || !got.HasFull {
+		t.Errorf("note = %+v", got)
+	}
+}
+
+func TestSummaryCancelledLaterDropsCiencia(t *testing.T) {
+	f := setup(t)
+	f.summary(t, sample(), issued.Add(-time.Hour), true)
+	if got := f.only(t); got.Ciencia != note.CienciaPending {
+		t.Fatalf("first summary = %+v", got)
+	}
+
+	cancelled := sample()
+	cancelled.Situation = dfe.Cancelled
+	f.summary(t, cancelled, issued.Add(-time.Hour), true)
+	if got := f.only(t); got.Status != note.StatusCancelled || got.Ciencia != note.CienciaNotApplicable {
+		t.Errorf("after the cancelled summary = %+v", got)
+	}
+}

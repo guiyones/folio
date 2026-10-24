@@ -16,7 +16,7 @@ const CienciaMaxAttempts = 5
 
 // CienciaDue returns up to limit notes of the account whose Ciência is
 // pending and due at now, oldest first.
-func (s *Store) CienciaDue(ctx context.Context, tx *sqlx.Tx, accountID uuid.UUID, now time.Time, limit int) ([]Note, error) {
+func (s *Store) CienciaDue(ctx context.Context, accountID uuid.UUID, now time.Time, limit int) ([]Note, error) {
 	const q = `SELECT ` + noteColumns + ` FROM notes
 	WHERE account_id = $1 AND ciencia = 'pendente'
 		AND (ciencia_next_at IS NULL OR ciencia_next_at <= $2)
@@ -24,7 +24,7 @@ func (s *Store) CienciaDue(ctx context.Context, tx *sqlx.Tx, accountID uuid.UUID
 	LIMIT $3`
 
 	var rows []dbNote
-	if err := tx.SelectContext(ctx, &rows, q, accountID.String(), now, limit); err != nil {
+	if err := s.db.SelectContext(ctx, &rows, q, accountID.String(), now, limit); err != nil {
 		return nil, fmt.Errorf("querying due ciência: %w", db.Map(err))
 	}
 	return toNotes(rows)

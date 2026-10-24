@@ -37,6 +37,9 @@ func TestCiencia135(t *testing.T) {
 	if !strings.HasPrefix(string(r.XML), "<procEventoNFe") {
 		t.Errorf("XML = %.80s", r.XML)
 	}
+	if strings.Contains(string(r.XML), "soap") {
+		t.Errorf("procEventoNFe carries the SOAP envelope namespaces: %s", r.XML)
+	}
 	if err := dfe.VerifyEnveloped(r.XML); err != nil {
 		t.Errorf("procEventoNFe signature: %v", err)
 	}
@@ -81,8 +84,8 @@ func TestCiencia573Duplicate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ciencia: %v", err)
 	}
-	if !r.Duplicate {
-		t.Errorf("result = %+v, want Duplicate", r)
+	if !r.Duplicate || r.XML != nil {
+		t.Errorf("result = %+v, want Duplicate without a receipt", r)
 	}
 }
 
@@ -114,5 +117,30 @@ func TestCienciaValidates(t *testing.T) {
 	}
 	if len(srv.Requests()) != 0 {
 		t.Error("an invalid call reached SEFAZ")
+	}
+}
+
+func TestCienciaLotesDiffer(t *testing.T) {
+	c, srv := newClient(t, answer(eventReturn("128", "135", "ok")))
+	ctx := context.Background()
+
+	for range 2 {
+		if _, err := c.Ciencia(ctx, cnpj, key, at); err != nil {
+			t.Fatalf("ciencia: %v", err)
+		}
+	}
+
+	lote := func(body []byte) string {
+		s := string(body)
+		i := strings.Index(s, "<idLote>")
+		j := strings.Index(s, "</idLote>")
+		if i < 0 || j < i {
+			t.Fatalf("no idLote in %s", s)
+		}
+		return s[i:j]
+	}
+	reqs := srv.Requests()
+	if a, b := lote(reqs[0].Body), lote(reqs[1].Body); a == b {
+		t.Errorf("two lots share idLote %s", a)
 	}
 }

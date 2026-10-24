@@ -85,9 +85,12 @@ func SignEnveloped(doc []byte, refID string, cert *Certificate) ([]byte, error) 
 }
 
 // VerifyEnveloped checks the first enveloped signature of doc against the
-// certificate it carries: the algorithms, the digest of the referenced
-// element and the RSA signature. It does not check who issued the
-// certificate.
+// certificate it carries: the algorithms and transforms, that it signs its
+// sibling element (the NF-e layout), the digest and the RSA signature.
+//
+// It is for tests and debugging of what folio signs. It does not check who
+// issued the certificate, so it must not be used to trust a document
+// received from someone else.
 func VerifyEnveloped(doc []byte) error {
 	root, err := parseTree(doc)
 	if err != nil {
@@ -117,6 +120,9 @@ func VerifyEnveloped(doc []byte) error {
 	if err := checkAlgorithm(reference, "DigestMethod", algSHA1); err != nil {
 		return err
 	}
+	if err := checkTransforms(reference); err != nil {
+		return err
+	}
 	uri, _ := reference.attr("URI") // a missing URI is empty and refused below
 	refID, found := strings.CutPrefix(uri, "#")
 	if !found || refID == "" {
@@ -129,6 +135,9 @@ func VerifyEnveloped(doc []byte) error {
 	})
 	if ref == nil {
 		return fmt.Errorf("elemento com Id %q não encontrado", refID)
+	}
+	if ref.parent != sig.parent {
+		return errors.New("a assinatura não está ao lado do elemento que referencia")
 	}
 
 	want, err := decodeChild(reference, "DigestValue")
@@ -160,6 +169,26 @@ func VerifyEnveloped(doc []byte) error {
 	sum := sha1.Sum(canonicalize(signedInfo, nil))
 	if err := rsa.VerifyPKCS1v15(pub, crypto.SHA1, sum[:], value); err != nil {
 		return fmt.Errorf("SignatureValue não confere: %w", err)
+	}
+	return nil
+}
+
+// checkTransforms requires exactly enveloped-signature followed by C14N.
+func checkTransforms(reference *element) error {
+	transforms := reference.child(nsDSig, "Transforms")
+	if transforms == nil {
+		return errors.New("Reference sem Transforms")
+	}
+
+	var got []string
+	for _, c := range transforms.children {
+		if el, ok := c.(*element); ok && el.local == "Transform" {
+			alg, _ := el.attr("Algorithm") // missing is "" and refused below
+			got = append(got, alg)
+		}
+	}
+	if len(got) != 2 || got[0] != algEnveloped || got[1] != algC14N {
+		return fmt.Errorf("Transforms %v não suportados", got)
 	}
 	return nil
 }

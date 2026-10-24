@@ -37,7 +37,9 @@ Todos leem FOLIO_DB_URL; cert-upload também lê FOLIO_CERT_KEY.
 `
 
 // admin runs one administration command. Clients, keys and accounts are only
-// created here, never through the API.
+// created here, never through the API. Writes to out are messages for the
+// operator; when the terminal is gone there is no one left to tell, so their
+// errors are not checked.
 func admin(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
 		fmt.Fprint(out, adminUsage)
@@ -70,7 +72,7 @@ func admin(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() // closing a pool at exit only fails on connections already gone
 
 	now := time.Now().UTC()
 	accounts := account.NewStore(conn)

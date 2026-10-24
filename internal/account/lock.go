@@ -12,20 +12,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// LockDue opens a transaction and locks the next account whose scan is due:
-// not paused, with a certificate and next_scan_at at or before now. Accounts
-// locked by another transaction are skipped, so two folio processes never
-// scan the same account. found is false when no account is due, and then no
-// transaction is left open.
-//
-// The caller owns tx: it must Commit or Rollback it.
-func (s *Store) LockDue(ctx context.Context, now time.Time) (tx *sqlx.Tx, a Account, found bool, err error) {
-	tx, err = s.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return nil, Account{}, false, fmt.Errorf("beginning transaction: %w", err)
-	}
-
-	const q = `
+// Claim picks the next account whose scan is due (not paused, with a
+// certificate, next_scan_at at or before now) and, in the same short
+// transaction, moves its next_scan_at to reserve. The reservation is
+// committed before folio calls SEFAZ, so a crash, a restart or another folio
+// process can never query that CNPJ again before reserve. Accounts locked by
+// another transaction are skipped. found is false when none is due.
+func (s *Store) Claim(ctx context.Context, now, reserve time.Time) (a Account, found bool, err error) {
+	const qs = `
 	SELECT ` + columns + ` FROM accounts a
 	WHERE NOT paused AND next_scan_at <= $1
 		AND EXISTS (SELECT 1 FROM certificates c WHERE c.account_id = a.id)
@@ -33,20 +27,30 @@ func (s *Store) LockDue(ctx context.Context, now time.Time) (tx *sqlx.Tx, a Acco
 	LIMIT 1
 	FOR UPDATE SKIP LOCKED`
 
-	var row dbAccount
-	if err := tx.GetContext(ctx, &row, q, now); err != nil {
-		errRb := db.Rollback(tx)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, Account{}, false, errRb
-		}
-		return nil, Account{}, false, errors.Join(fmt.Errorf("locking due account: %w", db.Map(err)), errRb)
-	}
+	const qu = `UPDATE accounts SET next_scan_at = $2 WHERE id = $1`
 
-	a, err = row.toAccount()
+	err = db.WithTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		var row dbAccount
+		if err := tx.GetContext(ctx, &row, qs, now); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return fmt.Errorf("claiming due account: %w", db.Map(err))
+		}
+		if _, err := tx.ExecContext(ctx, qu, row.ID, reserve); err != nil {
+			return fmt.Errorf("reserving the next scan: %w", db.Map(err))
+		}
+
+		var errConv error
+		a, errConv = row.toAccount()
+		found = errConv == nil
+		return errConv
+	})
 	if err != nil {
-		return nil, Account{}, false, errors.Join(err, db.Rollback(tx))
+		return Account{}, false, err
 	}
-	return tx, a, true, nil
+	a.NextScanAt = reserve
+	return a, found, nil
 }
 
 // Lock locks the account inside tx, waiting for a scan that holds it, and
@@ -70,8 +74,8 @@ type ScanResult struct {
 	Message string
 }
 
-// FinishScan records the end of a scan inside tx. The stored ult_nsu never
-// goes back, whatever SEFAZ answered.
+// FinishScan records how far a scan got, inside a transaction that holds the
+// account lock. The stored ult_nsu never goes back, whatever SEFAZ answered.
 func (s *Store) FinishScan(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, r ScanResult, now time.Time) error {
 	const q = `
 	UPDATE accounts SET

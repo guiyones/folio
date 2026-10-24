@@ -36,6 +36,7 @@ type fakeSEFAZ struct {
 	cienciaErr error
 	duplicate  bool
 	block      chan struct{} // when set, DistNSU waits on it
+	started    chan struct{} // when set, DistNSU signals it before waiting
 }
 
 type answer struct {
@@ -44,6 +45,9 @@ type answer struct {
 }
 
 func (f *fakeSEFAZ) DistNSU(ctx context.Context, uf int, c string, ult int64) (dfe.DistResult, error) {
+	if f.started != nil {
+		f.started <- struct{}{}
+	}
 	if f.block != nil {
 		<-f.block
 	}
@@ -103,6 +107,7 @@ func setup(t *testing.T, script ...answer) *env {
 	}
 
 	e.scanner = &scan.Scanner{
+		DB:       conn,
 		Accounts: e.accounts,
 		Notes:    e.notes,
 		Box:      box,
@@ -315,31 +320,30 @@ func TestScanWithoutCertificate(t *testing.T) {
 	}
 }
 
-func TestScanLockSerializes(t *testing.T) {
+// TestScanReservesBeforeCallingSEFAZ shows that the next hour is committed
+// before the call, so a second process (or the same one after a crash)
+// cannot query the CNPJ again, and that no lock is held during the call.
+func TestScanReservesBeforeCallingSEFAZ(t *testing.T) {
 	e := setup(t, docs("137", 0, 0))
 	e.sefaz.block = make(chan struct{})
+	e.sefaz.started = make(chan struct{}, 1)
 
 	first := make(chan error, 1)
 	go func() {
 		_, err := e.scanner.RunOnce(context.Background())
 		first <- err
 	}()
+	<-e.sefaz.started
 
-	// Wait for the first run to hold the lock: it is blocked inside DistNSU.
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		var locked bool
-		err := e.db.Get(&locked, `SELECT EXISTS (SELECT 1 FROM pg_locks l JOIN pg_class c ON c.oid = l.relation WHERE c.relname = 'accounts' AND l.mode = 'RowShareLock')`)
-		if err != nil {
-			t.Fatalf("pg_locks: %v", err)
-		}
-		if locked {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("first run never took the lock")
-		}
-		time.Sleep(10 * time.Millisecond)
+	// While SEFAZ is being called, the reservation is already committed and
+	// the account row is free: pausing does not wait for the scan.
+	if a := e.reload(t); !a.NextScanAt.Equal(t0.Add(scan.Wait)) {
+		t.Errorf("next_scan_at during the call = %v, want the reservation", a.NextScanAt)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := e.db.ExecContext(ctx, `UPDATE accounts SET last_message = 'x'`); err != nil {
+		t.Errorf("the account row is locked during the SEFAZ call: %v", err)
 	}
 
 	ran, err := e.scanner.RunOnce(context.Background())
@@ -456,5 +460,55 @@ func TestScanRepeatedNSUAppliesOnce(t *testing.T) {
 	}
 	if notes := e.notesAll(t); len(notes) != 1 {
 		t.Errorf("notes = %d", len(notes))
+	}
+}
+
+func TestScanStopsWhenNSUDoesNotMove(t *testing.T) {
+	e := setup(t, docs("138", 0, 50))
+
+	e.run(t)
+	a := e.reload(t)
+	if len(e.sefaz.distCalls) != 1 || a.UltNSU != 0 || !a.NextScanAt.Equal(t0.Add(scan.Wait)) {
+		t.Errorf("calls %v, account %+v", e.sefaz.distCalls, a)
+	}
+}
+
+// TestScanWaitCountsFromTheAnswer: a 137 that arrives late in a long run
+// still waits a full hour from the answer, not from the start of the run.
+func TestScanWaitCountsFromTheAnswer(t *testing.T) {
+	e := setup(t, docs("138", 1, 2, summary(1)), docs("137", 2, 2))
+	calls := 0
+	e.scanner.Now = func() time.Time {
+		calls++
+		return t0.Add(time.Duration(calls) * 10 * time.Minute)
+	}
+
+	e.run(t)
+	a := e.reload(t)
+	if a.LastScanAt == nil || !a.NextScanAt.Equal(a.LastScanAt.Add(scan.Wait)) || !a.NextScanAt.After(t0.Add(scan.Wait)) {
+		t.Errorf("next %v, last %v", a.NextScanAt, a.LastScanAt)
+	}
+}
+
+func TestScanErrorStopsTheLoopUntilTheTick(t *testing.T) {
+	e := setup(t, docs("137", 0, 0))
+	if _, err := e.db.Exec(`DROP TABLE note_events, notes, dfe_docs`); err != nil {
+		t.Fatalf("drop: %v", err)
+	}
+
+	// Ciência reads notes; with the table gone the run fails, and Loop must
+	// stop for the tick instead of claiming again right away.
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		e.scanner.Loop(ctx, time.Hour)
+		close(done)
+	}()
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	<-done
+
+	if n := len(e.sefaz.distCalls); n != 1 {
+		t.Errorf("SEFAZ got %d calls, want 1", n)
 	}
 }

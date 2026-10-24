@@ -702,3 +702,21 @@ O Claude executou o plano a pedido do dono, que estuda o núcleo `dfe/` pelo gui
 - **Prefixo da chave de API com 12 caracteres** (`fk_` mais 9), com `UNIQUE`. *Por quê:* 8 caracteres deixavam só 5 aleatórios. *Se estiver errado:* nada.
 - **C14N própria** (`dfe/c14n.go`) em vez de biblioteca. É conferida contra o `xmllint --c14n`, e a assinatura inteira contra o `xmlsec1`. Os dois testes pulam se a ferramenta não estiver instalada. *Por quê:* o formato da NF-e é fixo, a canonicalização cabe em 250 linhas, e o dono quer entender cada byte. *Se estiver errado:* aparece como 297 na homologação, e o guia de estudo tem o roteiro de depuração.
 - **`docker compose` por padrão** no makefile, com `COMPOSE="podman compose"` para o podman. *Por quê:* a máquina de desenvolvimento só tem docker.
+
+### Correções da revisão final (2026-10-24)
+
+Uma revisão independente do repositório inteiro achou problemas que os testes não pegavam. Todos foram corrigidos, com testes novos:
+
+- **A reserva vem antes da SEFAZ.** `account.Store.Claim` grava `next_scan_at = agora + espera` numa transação curta, e só depois o folio chama a SEFAZ. Antes, a hora só era gravada no fim de uma transação longa. Se o processo caísse ou fosse reiniciado no meio, a conta continuava vencida e podia ser consultada de novo em segundos, o que dá risco de 656.
+- **Nenhuma transação fica aberta durante uma chamada de rede.** Cada página e cada Ciência gravam numa transação curta, com a trava da conta. Pausar ou pedir uma Ciência à mão não espera mais a varredura.
+- **A espera conta a partir da resposta da SEFAZ,** e não do início da rodada, e virou 65 minutos para absorver a diferença de relógio.
+- **Um 138 que não avança o NSU para a rodada.** Antes, ele repetia 20 vezes e voltava no tick seguinte, sem fim.
+- **`Loop` para até o próximo tick quando `RunOnce` dá erro,** e o `serve` espera a varredura terminar antes de fechar o banco.
+- **Novo status `denegada`.** Uma nota denegada não recebe Ciência e não pode ser confundida com uma nota válida.
+- **Ciência de nota que ficou inválida.** Um resumo novo dizendo que a nota foi cancelada ou denegada tira a Ciência pendente.
+- **Um `idLote` diferente por evento,** feito com milissegundos e um contador.
+- **O `retEvento` é copiado como veio,** sem os namespaces do SOAP. Num 573 o folio não guarda um `procEventoNFe` falso.
+- **O valor cifrado fica amarrado à conta e ao campo.** O AAD agora é a chave mais `<conta>/pfx` ou `<conta>/password`. Ao abrir o certificado, o folio confere de novo se o CNPJ é o da conta.
+- **`VerifyEnveloped` ficou mais rígido.** Ele confere as transformações e exige que a assinatura fique ao lado do elemento assinado. A documentação diz que ele não serve para confiar em documento de terceiros.
+- **Detalhes do cliente HTTP.** O transporte TLS ganhou timeouts, aceita a renegociação que alguns servidores IIS da SEFAZ pedem, e as conexões são fechadas no fim de cada rodada.
+- **Um `dhResp` inválido não descarta mais a página.**

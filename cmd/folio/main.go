@@ -46,7 +46,7 @@ func main() {
 	}
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "erro:", err)
+		fmt.Fprintln(os.Stderr, "erro:", err) // stderr is the last resort; nothing to do if it fails
 		os.Exit(1)
 	}
 }

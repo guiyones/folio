@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/guiyones/folio/dfe"
@@ -52,7 +53,7 @@ func serve(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() // closing a pool at exit only fails on connections already gone
 	if err := db.Migrate(ctx, conn); err != nil {
 		return err
 	}
@@ -60,8 +61,14 @@ func serve(ctx context.Context, args []string) error {
 	accounts := account.NewStore(conn)
 	notes := note.NewStore(conn)
 
+	// The scan stops with ctx; serve waits for it before closing the
+	// database, so a run in progress can record what it got.
+	var scanning sync.WaitGroup
+	defer scanning.Wait()
+
 	if !*noScan {
 		scanner := &scan.Scanner{
+			DB:       conn,
 			Accounts: accounts,
 			Notes:    notes,
 			Box:      box,
@@ -71,7 +78,7 @@ func serve(ctx context.Context, args []string) error {
 			Now: func() time.Time { return time.Now().UTC() },
 			Log: log.With("part", "scan"),
 		}
-		go scanner.Loop(ctx, scan.Tick)
+		scanning.Go(func() { scanner.Loop(ctx, scan.Tick) })
 	}
 
 	srv := &http.Server{

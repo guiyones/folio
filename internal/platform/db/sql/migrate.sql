@@ -85,7 +85,7 @@ CREATE TABLE notes (
 	emit_name        TEXT        NOT NULL DEFAULT '',
 	total_cents      BIGINT      NOT NULL DEFAULT 0,
 	issued_at        TIMESTAMPTZ,
-	status           TEXT        NOT NULL CHECK (status IN ('resumo', 'completa', 'cancelada')),
+	status           TEXT        NOT NULL CHECK (status IN ('resumo', 'completa', 'cancelada', 'denegada')),
 	summary_doc_id   UUID        REFERENCES dfe_docs (id),
 	full_doc_id      UUID        REFERENCES dfe_docs (id),
 	ciencia          TEXT        NOT NULL DEFAULT 'pendente' CHECK (ciencia IN ('pendente', 'feita', 'falhou', 'nao_aplica')),

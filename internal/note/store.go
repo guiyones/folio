@@ -53,18 +53,23 @@ func (s *Store) SaveDoc(ctx context.Context, tx *sqlx.Tx, accountID uuid.UUID, d
 }
 
 // ApplySummary records a resNFe. A new note starts as a summary, or as
-// cancelled when the summary says so. Its Ciência is pending when auto is on
-// and the note was issued at or after cutoff; otherwise it does not apply.
+// cancelled or denied when the summary says so. Its Ciência is pending when
+// auto is on, the note is valid and it was issued at or after cutoff;
+// otherwise it does not apply.
 //
 // A note that is already complete keeps its data and only gains the link to
-// the summary. A cancelled note stays cancelled.
+// the summary. Cancelled wins over everything, then denied; a note that
+// becomes cancelled or denied no longer needs its pending Ciência.
 func (s *Store) ApplySummary(ctx context.Context, tx *sqlx.Tx, accountID, docID uuid.UUID, n dfe.Note, cutoff time.Time, auto bool) error {
 	status := StatusSummary
-	if n.Situation == dfe.Cancelled {
+	switch n.Situation {
+	case dfe.Cancelled:
 		status = StatusCancelled
+	case dfe.Denied:
+		status = StatusDenied
 	}
 	ciencia := CienciaNotApplicable
-	if auto && status != StatusCancelled && !n.IssuedAt.Before(cutoff) {
+	if auto && status == StatusSummary && !n.IssuedAt.Before(cutoff) {
 		ciencia = CienciaPending
 	}
 
@@ -81,12 +86,14 @@ func (s *Store) ApplySummary(ctx context.Context, tx *sqlx.Tx, accountID, docID 
 		issued_at   = CASE WHEN notes.full_doc_id IS NULL THEN EXCLUDED.issued_at   ELSE notes.issued_at   END,
 		status = CASE
 			WHEN notes.status = 'cancelada' OR EXCLUDED.status = 'cancelada' THEN 'cancelada'
+			WHEN notes.status = 'denegada' OR EXCLUDED.status = 'denegada' THEN 'denegada'
 			WHEN notes.status = 'completa' THEN 'completa'
 			ELSE 'resumo'
 		END,
 		ciencia = CASE
+			WHEN EXCLUDED.status IN ('cancelada', 'denegada') AND notes.ciencia = 'pendente' THEN 'nao_aplica'
 			WHEN notes.summary_doc_id IS NULL AND notes.full_doc_id IS NULL
-				AND notes.status <> 'cancelada' AND notes.ciencia = 'nao_aplica'
+				AND notes.status = 'resumo' AND notes.ciencia = 'nao_aplica'
 			THEN EXCLUDED.ciencia
 			ELSE notes.ciencia
 		END,
@@ -100,28 +107,34 @@ func (s *Store) ApplySummary(ctx context.Context, tx *sqlx.Tx, accountID, docID 
 	return nil
 }
 
-// ApplyFull records a procNFe: the note becomes complete, unless it was
-// cancelled, and takes its data from the full XML. A pending Ciência is no
-// longer needed, since the XML it would release already came.
+// ApplyFull records a procNFe: the note becomes complete, or denied when its
+// protocol says so, unless it was cancelled, and takes its data from the
+// full XML. A pending Ciência is no longer needed, since the XML it would
+// release already came.
 func (s *Store) ApplyFull(ctx context.Context, tx *sqlx.Tx, accountID, docID uuid.UUID, n dfe.Note) error {
+	status := StatusFull
+	if n.Situation == dfe.Denied {
+		status = StatusDenied
+	}
+
 	const q = `
 	INSERT INTO notes
 		(id, account_id, key, emit_cnpj, emit_name, total_cents, issued_at, status, full_doc_id, ciencia, seq)
 	VALUES
-		($1, $2, $3, $4, $5, $6, $7, 'completa', $8, 'nao_aplica', nextval('note_seq'))
+		($1, $2, $3, $4, $5, $6, $7, $9, $8, 'nao_aplica', nextval('note_seq'))
 	ON CONFLICT (account_id, key) DO UPDATE SET
 		emit_cnpj   = EXCLUDED.emit_cnpj,
 		emit_name   = EXCLUDED.emit_name,
 		total_cents = EXCLUDED.total_cents,
 		issued_at   = EXCLUDED.issued_at,
 		full_doc_id = EXCLUDED.full_doc_id,
-		status  = CASE WHEN notes.status = 'cancelada' THEN 'cancelada' ELSE 'completa' END,
+		status  = CASE WHEN notes.status IN ('cancelada', 'denegada') THEN notes.status ELSE EXCLUDED.status END,
 		ciencia = CASE WHEN notes.ciencia = 'pendente' THEN 'nao_aplica' ELSE notes.ciencia END,
 		ciencia_next_at = NULL,
 		seq = nextval('note_seq')`
 
 	_, err := tx.ExecContext(ctx, q, uuid.NewV7().String(), accountID.String(), n.Key, n.EmitCNPJ, n.EmitName,
-		n.TotalCents, n.IssuedAt, docID.String())
+		n.TotalCents, n.IssuedAt, docID.String(), string(status))
 	if err != nil {
 		return fmt.Errorf("applying full note %s: %w", n.Key, db.Map(err))
 	}

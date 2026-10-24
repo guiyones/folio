@@ -47,12 +47,12 @@ func TestUploadOK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("certificate: %v", err)
 	}
-	plain, err := box.Open(stored.PFX)
+	plain, err := box.Open(stored.PFX, a.ID.String()+"/pfx")
 	if err != nil || !bytes.Equal(plain, pfx) {
 		t.Errorf("unsealed pfx differs (err %v)", err)
 	}
 
-	cert, err := account.OpenCertificate(stored, box)
+	cert, err := account.OpenCertificate(a, stored, box)
 	if err != nil || cert.CNPJ != a.CNPJ {
 		t.Errorf("open = %v, %v", cert, err)
 	}
@@ -157,7 +157,15 @@ func TestOpenCertificateOtherKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new box: %v", err)
 	}
-	if _, err := account.OpenCertificate(sc, other); err == nil {
+	if _, err := account.OpenCertificate(a, sc, other); err == nil {
 		t.Error("opened a certificate sealed with another key")
+	}
+
+	// A sealed certificate copied to another account does not open there.
+	b := a
+	b.ID = a.ID
+	b.ID[15] ^= 1
+	if _, err := account.OpenCertificate(b, sc, newBox(t)); err == nil {
+		t.Error("opened a certificate sealed for another account")
 	}
 }

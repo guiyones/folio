@@ -109,8 +109,9 @@ func parseDist(data []byte) (DistResult, error) {
 		return DistResult{}, fmt.Errorf("maxNSU: %w", err)
 	}
 	if ret.DhResp != "" {
-		if r.RespondedAt, err = time.Parse(time.RFC3339, strings.TrimSpace(ret.DhResp)); err != nil {
-			return DistResult{}, fmt.Errorf("dhResp: %w", err)
+		// dhResp is informative; a bad one must not throw away the documents.
+		if t, err := time.Parse(time.RFC3339, strings.TrimSpace(ret.DhResp)); err == nil {
+			r.RespondedAt = t
 		}
 	}
 
@@ -153,7 +154,7 @@ func unzipDoc(b64 string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gzip: %w", err)
 	}
-	defer zr.Close()
+	defer zr.Close() // Close only reports what ReadAll already returned
 
 	doc, err := io.ReadAll(io.LimitReader(zr, maxDoc+1))
 	if err != nil {

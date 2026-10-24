@@ -16,8 +16,10 @@ import (
 var ErrKeySize = errors.New("a chave de cifra precisa ter 32 bytes")
 
 // Box seals and opens data with AES-256-GCM. A sealed value is the 12-byte
-// nonce followed by the ciphertext and its tag. The key ID is authenticated
-// with the data, so a value sealed under one key never opens under another.
+// nonce followed by the ciphertext and its tag. The key ID and a label naming
+// where the value lives (like "<account id>/pfx") are authenticated with the
+// data, so a value sealed under one key, or for one place, never opens under
+// another: copying a sealed certificate to another account's row fails.
 type Box struct {
 	keyID string
 	aead  cipher.AEAD
@@ -70,25 +72,29 @@ func (b *Box) KeyID() string {
 	return b.keyID
 }
 
-// Seal encrypts plain with a fresh random nonce.
-func (b *Box) Seal(plain []byte) ([]byte, error) {
+// Seal encrypts plain for label with a fresh random nonce.
+func (b *Box) Seal(plain []byte, label string) ([]byte, error) {
 	nonce := make([]byte, b.aead.NonceSize(), b.aead.NonceSize()+len(plain)+b.aead.Overhead())
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, fmt.Errorf("reading nonce: %w", err)
 	}
-	return b.aead.Seal(nonce, nonce, plain, []byte(b.keyID)), nil
+	return b.aead.Seal(nonce, nonce, plain, b.aad(label)), nil
 }
 
-// Open decrypts a value sealed by Seal under the same key and key ID.
-func (b *Box) Open(sealed []byte) ([]byte, error) {
+// Open decrypts a value sealed by Seal under the same key, key ID and label.
+func (b *Box) Open(sealed []byte, label string) ([]byte, error) {
 	n := b.aead.NonceSize()
 	if len(sealed) < n+b.aead.Overhead() {
 		return nil, errors.New("valor selado curto demais")
 	}
 
-	plain, err := b.aead.Open(nil, sealed[:n], sealed[n:], []byte(b.keyID))
+	plain, err := b.aead.Open(nil, sealed[:n], sealed[n:], b.aad(label))
 	if err != nil {
 		return nil, fmt.Errorf("opening sealed value: %w", err)
 	}
 	return plain, nil
+}
+
+func (b *Box) aad(label string) []byte {
+	return []byte(b.keyID + "\x00" + label)
 }

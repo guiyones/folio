@@ -40,11 +40,11 @@ func UploadCertificate(ctx context.Context, st *Store, box *crypt.Box, a Account
 		return StoredCert{}, ErrExpired
 	}
 
-	sealedPFX, err := box.Seal(pfx)
+	sealedPFX, err := box.Seal(pfx, label(a, "pfx"))
 	if err != nil {
 		return StoredCert{}, fmt.Errorf("selando o certificado: %w", err)
 	}
-	sealedPass, err := box.Seal([]byte(password))
+	sealedPass, err := box.Seal([]byte(password), label(a, "password"))
 	if err != nil {
 		return StoredCert{}, fmt.Errorf("selando a senha: %w", err)
 	}
@@ -64,17 +64,18 @@ func UploadCertificate(ctx context.Context, st *Store, box *crypt.Box, a Account
 	return sc, nil
 }
 
-// OpenCertificate unseals a stored certificate and opens it.
-func OpenCertificate(sc StoredCert, box *crypt.Box) (*dfe.Certificate, error) {
+// OpenCertificate unseals the stored certificate of a and opens it, checking
+// again that it belongs to the account's CNPJ.
+func OpenCertificate(a Account, sc StoredCert, box *crypt.Box) (*dfe.Certificate, error) {
 	if sc.KeyID != box.KeyID() {
 		return nil, fmt.Errorf("o certificado foi selado com a chave %q, e a chave atual é %q", sc.KeyID, box.KeyID())
 	}
 
-	pfx, err := box.Open(sc.PFX)
+	pfx, err := box.Open(sc.PFX, label(a, "pfx"))
 	if err != nil {
 		return nil, fmt.Errorf("abrindo o certificado selado: %w", err)
 	}
-	pass, err := box.Open(sc.Password)
+	pass, err := box.Open(sc.Password, label(a, "password"))
 	if err != nil {
 		return nil, fmt.Errorf("abrindo a senha selada: %w", err)
 	}
@@ -83,5 +84,13 @@ func OpenCertificate(sc StoredCert, box *crypt.Box) (*dfe.Certificate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("lendo o certificado guardado: %w", err)
 	}
+	if cert.CNPJ != a.CNPJ {
+		return nil, &CNPJMismatchError{Cert: cert.CNPJ, Account: a.CNPJ}
+	}
 	return cert, nil
+}
+
+// label names where a sealed value lives, so it opens only there.
+func label(a Account, field string) string {
+	return a.ID.String() + "/" + field
 }

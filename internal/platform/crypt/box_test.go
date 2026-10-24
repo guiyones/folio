@@ -22,7 +22,7 @@ func newBox(t *testing.T, keyID string, fill byte) *crypt.Box {
 func TestBoxRoundTrip(t *testing.T) {
 	box := newBox(t, "k1", 7)
 
-	sealed, err := box.Seal([]byte("certificado"))
+	sealed, err := box.Seal([]byte("certificado"), "a/pfx")
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
@@ -30,7 +30,7 @@ func TestBoxRoundTrip(t *testing.T) {
 		t.Fatal("sealed value contains the plain text")
 	}
 
-	plain, err := box.Open(sealed)
+	plain, err := box.Open(sealed, "a/pfx")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -42,11 +42,11 @@ func TestBoxRoundTrip(t *testing.T) {
 func TestBoxNonceDiffers(t *testing.T) {
 	box := newBox(t, "k1", 7)
 
-	a, err := box.Seal([]byte("x"))
+	a, err := box.Seal([]byte("x"), "a/pfx")
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
-	b, err := box.Seal([]byte("x"))
+	b, err := box.Seal([]byte("x"), "a/pfx")
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
@@ -58,33 +58,36 @@ func TestBoxNonceDiffers(t *testing.T) {
 func TestBoxTampered(t *testing.T) {
 	box := newBox(t, "k1", 7)
 
-	sealed, err := box.Seal([]byte("certificado"))
+	sealed, err := box.Seal([]byte("certificado"), "a/pfx")
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
 	sealed[len(sealed)-1] ^= 1
 
-	if _, err := box.Open(sealed); err == nil {
+	if _, err := box.Open(sealed, "a/pfx"); err == nil {
 		t.Error("open accepted a tampered value")
 	}
 }
 
 func TestBoxWrongKey(t *testing.T) {
-	sealed, err := newBox(t, "k1", 7).Seal([]byte("certificado"))
+	sealed, err := newBox(t, "k1", 7).Seal([]byte("certificado"), "a/pfx")
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
 
-	if _, err := newBox(t, "k1", 8).Open(sealed); err == nil {
+	if _, err := newBox(t, "k1", 8).Open(sealed, "a/pfx"); err == nil {
 		t.Error("open accepted another key")
 	}
-	if _, err := newBox(t, "k2", 7).Open(sealed); err == nil {
+	if _, err := newBox(t, "k2", 7).Open(sealed, "a/pfx"); err == nil {
 		t.Error("open accepted another key id")
+	}
+	if _, err := newBox(t, "k1", 7).Open(sealed, "b/pfx"); err == nil {
+		t.Error("open accepted another label")
 	}
 }
 
 func TestBoxShort(t *testing.T) {
-	if _, err := newBox(t, "k1", 7).Open([]byte("curto")); err == nil {
+	if _, err := newBox(t, "k1", 7).Open([]byte("curto"), "a/pfx"); err == nil {
 		t.Error("open accepted a short value")
 	}
 }

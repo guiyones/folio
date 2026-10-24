@@ -50,7 +50,7 @@ func (c *Client) call(ctx context.Context, url, action string, body []byte) ([]b
 	if err != nil {
 		return nil, fmt.Errorf("chamando a SEFAZ: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // the body was read to the end or to the limit; nothing to report
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponse+1))
 	if err != nil {

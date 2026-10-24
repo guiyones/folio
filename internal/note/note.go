@@ -29,6 +29,7 @@ const (
 	StatusSummary   Status = "resumo"    // only the summary came
 	StatusFull      Status = "completa"  // the full XML came
 	StatusCancelled Status = "cancelada" // the issuer cancelled it
+	StatusDenied    Status = "denegada"  // SEFAZ denied it: no fiscal value
 )
 
 // Ciencia is the state of the Ciência da Operação of a note.

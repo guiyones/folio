@@ -13,6 +13,8 @@ import (
 )
 
 // consulta calls NFeDistribuicaoDFe once and prints and saves what came.
+// The XML files are what matters and their writes are checked; the lines
+// printed to out are not, since a closed terminal leaves no one to tell.
 // It never repeats the call, so it can run beside the hourly scan of another
 // tool only if that tool is paused.
 func consulta(ctx context.Context, args []string, out io.Writer) error {

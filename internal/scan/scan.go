@@ -1,6 +1,12 @@
 // Package scan runs the NFeDistribuicaoDFe scan of every account: it asks
 // SEFAZ for new documents within the one-hour limit, stores them as notes
 // and sends the pending Ciência da Operação.
+//
+// No transaction is open while folio talks to SEFAZ. A run first reserves
+// the account's next hour (account.Store.Claim) and commits it, so whatever
+// happens next (a crash, a deploy, a lost connection) the CNPJ is not
+// queried again too soon. Each answer is then stored in its own short
+// transaction that holds the account lock, together with the NSU it reached.
 package scan
 
 import (
@@ -22,11 +28,13 @@ import (
 // Limits of the scan.
 const (
 	// Wait is how long an account waits after a 137, a 656, an error or
-	// reaching maxNSU. SEFAZ blocks a CNPJ that asks more often.
-	Wait = time.Hour
+	// reaching maxNSU, counted from the SEFAZ answer. SEFAZ blocks a CNPJ
+	// that asks more than once an hour; the extra minutes absorb clock skew
+	// between folio and SEFAZ.
+	Wait = time.Hour + 5*time.Minute
 
 	// MaxPages bounds the calls of one run; an account with more to fetch
-	// is picked again right away.
+	// is picked again on the next tick.
 	MaxPages = 20
 
 	// CertWarn is how long before expiry the certificate starts warning.
@@ -53,6 +61,7 @@ type Dialer func(cert *dfe.Certificate, env dfe.Env) (SEFAZ, error)
 
 // Scanner scans the accounts that are due.
 type Scanner struct {
+	DB       *sqlx.DB
 	Accounts *account.Store
 	Notes    *note.Store
 	Box      *crypt.Box
@@ -61,19 +70,20 @@ type Scanner struct {
 	Log      *slog.Logger
 }
 
-// Loop scans due accounts every tick until ctx is done. Errors are logged and
-// never stop the loop.
+// Loop scans due accounts every tick until ctx is done. Errors are logged
+// and never stop the loop; after an error it waits for the next tick.
 func (s *Scanner) Loop(ctx context.Context, tick time.Duration) {
 	t := time.NewTicker(tick)
 	defer t.Stop()
 
 	for {
-		for {
+		for ctx.Err() == nil {
 			ran, err := s.RunOnce(ctx)
 			if err != nil {
 				s.Log.Error("scan", "err", err)
+				break
 			}
-			if !ran || ctx.Err() != nil {
+			if !ran {
 				break
 			}
 		}
@@ -93,160 +103,149 @@ func (s *Scanner) Loop(ctx context.Context, tick time.Duration) {
 func (s *Scanner) RunOnce(ctx context.Context) (ran bool, err error) {
 	now := s.Now()
 
-	tx, a, found, err := s.Accounts.LockDue(ctx, now)
-	if err != nil {
+	a, found, err := s.Accounts.Claim(ctx, now, now.Add(Wait))
+	if err != nil || !found {
 		return false, err
 	}
-	if !found {
-		return false, nil
-	}
-	defer func() {
-		if errRb := db.Rollback(tx); errRb != nil {
-			err = errors.Join(err, errRb)
-		}
-	}()
-
 	log := s.Log.With("account", a.ID, "cnpj", a.CNPJ)
 
-	// A failure partway still returns how far the scan got, so the pages
-	// already stored are kept and the account waits before trying again.
-	result, scanErr := s.scan(ctx, tx, a, now, log)
-	if scanErr != nil {
-		scanErr = fmt.Errorf("scanning account %s: %w", a.ID, scanErr)
+	sefaz, problem, err := s.connect(ctx, a, now, log)
+	if err != nil {
+		return true, err
 	}
-	if result.Next.IsZero() {
-		return true, scanErr
+	if problem != "" {
+		return true, s.finish(ctx, a.ID, account.ScanResult{UltNSU: a.UltNSU, Next: now.Add(Wait), Message: problem}, now)
 	}
-
-	if err := s.Accounts.FinishScan(ctx, tx, a.ID, result, now); err != nil {
-		return true, errors.Join(scanErr, err)
-	}
-	if err := tx.Commit(); err != nil {
-		return true, errors.Join(scanErr, fmt.Errorf("committing scan of %s: %w", a.ID, err))
+	if c, ok := sefaz.(interface{ CloseIdleConnections() }); ok {
+		defer c.CloseIdleConnections()
 	}
 
-	log.Info("scan", "ult_nsu", result.UltNSU, "cstat", result.CStat, "next", result.Next)
-	return true, scanErr
+	if err := s.pages(ctx, sefaz, a, log); err != nil {
+		return true, fmt.Errorf("scanning account %s: %w", a.ID, err)
+	}
+	if err := s.ciencia(ctx, sefaz, a, log); err != nil {
+		return true, fmt.Errorf("sending ciência of account %s: %w", a.ID, err)
+	}
+	return true, nil
 }
 
-// scan does the work of one run inside tx and says how it ended.
-func (s *Scanner) scan(ctx context.Context, tx *sqlx.Tx, a account.Account, now time.Time, log *slog.Logger) (account.ScanResult, error) {
-	wait := account.ScanResult{UltNSU: a.UltNSU, Next: now.Add(Wait)}
-
+// connect opens the certificate and builds the SEFAZ client. problem says
+// why the account cannot be scanned now, like an expired certificate.
+func (s *Scanner) connect(ctx context.Context, a account.Account, now time.Time, log *slog.Logger) (SEFAZ, string, error) {
 	stored, err := s.Accounts.Certificate(ctx, a.ID)
 	if err != nil {
-		wait.Message = "erro ao ler o certificado"
-		return wait, err
+		return nil, "", err
 	}
 	if !stored.NotAfter.After(now) {
-		wait.Message = "certificado vencido"
 		log.Warn("certificate expired", "not_after", stored.NotAfter)
-		return wait, nil
+		return nil, "certificado vencido", nil
 	}
 	if stored.NotAfter.Sub(now) <= CertWarn {
 		log.Warn("certificate expires soon", "not_after", stored.NotAfter)
 	}
 
-	cert, err := account.OpenCertificate(stored, s.Box)
+	cert, err := account.OpenCertificate(a, stored, s.Box)
 	if err != nil {
-		wait.Message = err.Error()
 		log.Error("opening certificate", "err", err)
-		return wait, nil
+		return nil, err.Error(), nil
 	}
 	sefaz, err := s.Dial(cert, a.Env)
 	if err != nil {
-		wait.Message = err.Error()
 		log.Error("building sefaz client", "err", err)
-		return wait, nil
+		return nil, err.Error(), nil
 	}
-
-	result, err := s.pages(ctx, tx, sefaz, a, now, log)
-	if err != nil {
-		return result, err
-	}
-
-	if err := savepoint(ctx, tx, "ciencia", func() error { return s.ciencia(ctx, tx, sefaz, a, now, log) }); err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return sefaz, "", nil
 }
 
-// savepoint runs fn under a savepoint and rolls back to it when fn fails,
-// leaving tx usable for what was done before.
-func savepoint(ctx context.Context, tx *sqlx.Tx, name string, fn func() error) error {
-	if _, err := tx.ExecContext(ctx, "SAVEPOINT "+name); err != nil {
-		return fmt.Errorf("savepoint %s: %w", name, err)
-	}
-
-	if err := fn(); err != nil {
-		if _, errRb := tx.ExecContext(ctx, "ROLLBACK TO SAVEPOINT "+name); errRb != nil {
-			return errors.Join(err, fmt.Errorf("rolling back to %s: %w", name, errRb))
-		}
-		return err
-	}
-
-	if _, err := tx.ExecContext(ctx, "RELEASE SAVEPOINT "+name); err != nil {
-		return fmt.Errorf("releasing savepoint %s: %w", name, err)
-	}
-	return nil
-}
-
-// pages calls NFeDistribuicaoDFe until there is nothing more, the limit
-// says wait, or MaxPages calls were made. Each page is stored under a
-// savepoint, so a failure keeps the pages before it and their NSU.
-func (s *Scanner) pages(ctx context.Context, tx *sqlx.Tx, sefaz SEFAZ, a account.Account, now time.Time, log *slog.Logger) (account.ScanResult, error) {
+// pages calls NFeDistribuicaoDFe until there is nothing more, the limit says
+// wait, or MaxPages calls were made. Each answer is stored with its NSU
+// before the next call.
+func (s *Scanner) pages(ctx context.Context, sefaz SEFAZ, a account.Account, log *slog.Logger) error {
 	ult := a.UltNSU
 
-	for range MaxPages {
+	for page := 1; ; page++ {
 		r, err := sefaz.DistNSU(ctx, a.UF, a.CNPJ, ult)
+		answered := s.Now()
+		wait := answered.Add(Wait)
+
 		if err != nil {
 			log.Warn("distdfe", "err", err)
-			return account.ScanResult{UltNSU: ult, Next: now.Add(Wait), Message: err.Error()}, nil
+			return s.finish(ctx, a.ID, account.ScanResult{UltNSU: ult, Next: wait, Message: err.Error()}, answered)
 		}
 
-		done := account.ScanResult{UltNSU: max(ult, r.UltNSU), Next: now.Add(Wait), CStat: r.CStat, Message: r.Motivo}
+		result := account.ScanResult{UltNSU: max(ult, r.UltNSU), Next: wait, CStat: r.CStat, Message: r.Motivo}
 
 		switch r.CStat {
 		case dfe.CStatNoDocs:
-			return done, nil
+			return s.finish(ctx, a.ID, result, answered)
 		case dfe.CStatOveruse:
 			log.Warn("sefaz says consumo indevido", "motivo", r.Motivo)
-			return done, nil
+			return s.finish(ctx, a.ID, result, answered)
 		case dfe.CStatDocsFound:
 		default:
 			log.Warn("distdfe rejected", "cstat", r.CStat, "motivo", r.Motivo)
-			done.UltNSU = ult
-			return done, nil
+			result.UltNSU = ult
+			return s.finish(ctx, a.ID, result, answered)
 		}
 
-		if err := savepoint(ctx, tx, "page", func() error { return s.savePage(ctx, tx, a, r.Docs, now, log) }); err != nil {
-			return account.ScanResult{UltNSU: ult, Next: now.Add(Wait), Message: "erro ao gravar os documentos"}, err
+		progressed := r.UltNSU > ult && len(r.Docs) > 0
+		more := progressed && r.UltNSU < r.MaxNSU
+		switch {
+		case !progressed:
+			// A 138 that does not move the NSU would loop forever.
+			log.Warn("sefaz did not advance the NSU", "ult_nsu", ult, "answer_ult", r.UltNSU, "max_nsu", r.MaxNSU)
+			result.Message = "a SEFAZ não avançou o NSU"
+		case more && page >= MaxPages:
+			// More to fetch: the next tick continues right away.
+			result.Next = answered
+			result.Message = "continua na próxima rodada"
 		}
 
-		ult = done.UltNSU
-		if ult >= r.MaxNSU {
-			return done, nil
+		if err := s.store(ctx, a, r.Docs, result, answered, log); err != nil {
+			return err
+		}
+		ult = result.UltNSU
+
+		if !more || page >= MaxPages {
+			return nil
 		}
 	}
-
-	// More to fetch: the next tick continues.
-	return account.ScanResult{UltNSU: ult, Next: now, CStat: dfe.CStatDocsFound, Message: "continua na próxima rodada"}, nil
 }
 
-// savePage stores the documents of one answer and applies the new ones.
-func (s *Scanner) savePage(ctx context.Context, tx *sqlx.Tx, a account.Account, docs []dfe.Doc, now time.Time, log *slog.Logger) error {
-	for _, d := range docs {
-		docID, isNew, err := s.Notes.SaveDoc(ctx, tx, a.ID, d, now)
+// store saves one answer and the NSU it reached in one transaction under the
+// account lock.
+func (s *Scanner) store(ctx context.Context, a account.Account, docs []dfe.Doc, r account.ScanResult, now time.Time, log *slog.Logger) error {
+	return db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
+		locked, err := s.Accounts.Lock(ctx, tx, a.ID)
 		if err != nil {
 			return err
 		}
-		if !isNew {
-			continue
+		for _, d := range docs {
+			docID, isNew, err := s.Notes.SaveDoc(ctx, tx, a.ID, d, now)
+			if err != nil {
+				return err
+			}
+			if !isNew {
+				continue
+			}
+			if err := s.apply(ctx, tx, locked, docID, d, log); err != nil {
+				return fmt.Errorf("NSU %d: %w", d.NSU, err)
+			}
 		}
-		if err := s.apply(ctx, tx, a, docID, d, log); err != nil {
-			return fmt.Errorf("NSU %d: %w", d.NSU, err)
+		return s.Accounts.FinishScan(ctx, tx, a.ID, r, now)
+	})
+}
+
+// finish records how the run ended, without documents.
+func (s *Scanner) finish(ctx context.Context, id uuid.UUID, r account.ScanResult, now time.Time) error {
+	err := db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
+		if _, err := s.Accounts.Lock(ctx, tx, id); err != nil {
+			return err
 		}
+		return s.Accounts.FinishScan(ctx, tx, id, r, now)
+	})
+	if err != nil {
+		return fmt.Errorf("recording the scan of %s: %w", id, err)
 	}
 	return nil
 }
@@ -291,35 +290,43 @@ func (s *Scanner) apply(ctx context.Context, tx *sqlx.Tx, a account.Account, doc
 	}
 }
 
-// ciencia sends the due Ciência of the account. A refusal or a network
-// error only schedules a retry; it never stops the scan.
-func (s *Scanner) ciencia(ctx context.Context, tx *sqlx.Tx, sefaz SEFAZ, a account.Account, now time.Time, log *slog.Logger) error {
-	due, err := s.Notes.CienciaDue(ctx, tx, a.ID, now, CienciaPerRun)
+// ciencia sends the due Ciência of the account, one note at a time, each
+// answer stored in its own transaction. A refusal or a network error only
+// schedules a retry; it never stops the scan.
+func (s *Scanner) ciencia(ctx context.Context, sefaz SEFAZ, a account.Account, log *slog.Logger) error {
+	due, err := s.Notes.CienciaDue(ctx, a.ID, s.Now(), CienciaPerRun)
 	if err != nil {
 		return err
 	}
 
 	for _, n := range due {
-		r, err := sefaz.Ciencia(ctx, a.CNPJ, n.Key, now)
-		if err != nil {
-			log.Warn("ciência", "key", n.Key, "err", err)
-			if err := s.Notes.CienciaFailed(ctx, tx, n.ID, now.Add(CienciaRetry)); err != nil {
-				return err
-			}
-			continue
+		at := s.Now()
+		r, sendErr := sefaz.Ciencia(ctx, a.CNPJ, n.Key, at)
+		if sendErr != nil {
+			log.Warn("ciência", "key", n.Key, "err", sendErr)
 		}
 
-		event := note.NewEvent{
-			Event:  dfe.Event{Key: n.Key, Type: dfe.EventCiencia, Seq: 1, Description: "Ciencia da Operacao", At: now},
-			Origin: note.OriginFolio,
-			CStat:  r.CStat,
-			XML:    r.XML,
-		}
-		if err := s.Notes.ApplyEvent(ctx, tx, a.ID, event); err != nil {
-			return err
-		}
-		if err := s.Notes.CienciaSent(ctx, tx, n.ID); err != nil {
-			return err
+		err := db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
+			if _, err := s.Accounts.Lock(ctx, tx, a.ID); err != nil {
+				return err
+			}
+			if sendErr != nil {
+				return s.Notes.CienciaFailed(ctx, tx, n.ID, at.Add(CienciaRetry))
+			}
+
+			event := note.NewEvent{
+				Event:  dfe.Event{Key: n.Key, Type: dfe.EventCiencia, Seq: 1, Description: "Ciencia da Operacao", At: at},
+				Origin: note.OriginFolio,
+				CStat:  r.CStat,
+				XML:    r.XML,
+			}
+			if err := s.Notes.ApplyEvent(ctx, tx, a.ID, event); err != nil {
+				return err
+			}
+			return s.Notes.CienciaSent(ctx, tx, n.ID)
+		})
+		if err != nil {
+			return errors.Join(fmt.Errorf("recording ciência of %s", n.Key), err)
 		}
 	}
 	return nil

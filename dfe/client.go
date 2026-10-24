@@ -91,7 +91,12 @@ func NewClient(cert *Certificate, env Env, opts ...Option) (*Client, error) {
 			Certificates: []tls.Certificate{cert.TLS},
 			RootCAs:      o.roots,
 			MinVersion:   tls.VersionTLS12,
+			// Some SEFAZ servers (IIS) ask for the client certificate through a
+			// renegotiation, which Go refuses by default.
+			Renegotiation: tls.RenegotiateOnceAsClient,
 		},
+		IdleConnTimeout:     30 * time.Second,
+		TLSHandshakeTimeout: 15 * time.Second,
 	}
 
 	return &Client{
@@ -100,4 +105,10 @@ func NewClient(cert *Certificate, env Env, opts ...Option) (*Client, error) {
 		endpoints: endpoints,
 		http:      &http.Client{Transport: transport, Timeout: o.timeout},
 	}, nil
+}
+
+// CloseIdleConnections closes the kept-alive connections to SEFAZ. Call it
+// when the Client is no longer needed.
+func (c *Client) CloseIdleConnections() {
+	c.http.CloseIdleConnections()
 }

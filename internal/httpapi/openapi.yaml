@@ -381,7 +381,7 @@ components:
             $ref: "#/components/schemas/Account"
     NoteStatus:
       type: string
-      enum: [resumo, completa, cancelada]
+      enum: [resumo, completa, cancelada, denegada]
     CienciaStatus:
       type: string
       enum: [pendente, feita, falhou, nao_aplica]
