@@ -46,8 +46,8 @@ func TestLoadPFXWrongPassword(t *testing.T) {
 
 func TestLoadPFXGarbage(t *testing.T) {
 	_, err := dfe.LoadPFX([]byte("não sou pfx"), "x")
-	if err == nil || errors.Is(err, dfe.ErrBadPassword) {
-		t.Errorf("err = %v, want a read error", err)
+	if !errors.Is(err, dfe.ErrInvalidPFX) || errors.Is(err, dfe.ErrBadPassword) {
+		t.Errorf("err = %v, want ErrInvalidPFX", err)
 	}
 }
 

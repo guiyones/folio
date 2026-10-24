@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down test lint
+.PHONY: dev-up dev-down generate test lint
 
 # podman compose also works: make dev-up COMPOSE="podman compose"
 COMPOSE ?= docker compose
@@ -12,7 +12,10 @@ dev-up:
 dev-down:
 	$(COMPOSE) -f zarf/compose/docker_compose.yaml down
 
-test:
+generate:
+	go tool oapi-codegen -config internal/httpapi/oapi.yaml internal/httpapi/openapi.yaml
+
+test: generate
 	go test ./...
 
 lint:

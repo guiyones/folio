@@ -19,6 +19,7 @@ var (
 	ErrBadPassword = errors.New("senha do certificado incorreta")
 	ErrNoCNPJ      = errors.New("o certificado não tem CNPJ (não é um e-CNPJ ICP-Brasil)")
 	ErrNotRSA      = errors.New("a chave do certificado não é RSA")
+	ErrInvalidPFX  = errors.New("o arquivo não é um certificado PFX válido")
 )
 
 // oidCNPJ is the ICP-Brasil otherName, inside the SubjectAltName, that
@@ -56,7 +57,7 @@ func LoadPFX(data []byte, password string) (*Certificate, error) {
 		if errors.Is(err, pkcs12.ErrIncorrectPassword) {
 			return nil, ErrBadPassword
 		}
-		return nil, fmt.Errorf("lendo o PFX: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidPFX, err)
 	}
 
 	rsaKey, ok := key.(*rsa.PrivateKey)

@@ -1,0 +1,457 @@
+openapi: 3.0.3
+info:
+  title: folio
+  version: 0.1.0
+  description: |
+    Motor fiscal próprio. Nesta versão, o folio busca na SEFAZ (NFeDistribuicaoDFe)
+    as notas emitidas contra o CNPJ de cada conta e as entrega por cursor.
+
+    Toda chamada leva `Authorization: Bearer fk_...`. Cada chave só enxerga as contas
+    ligadas ao cliente dela; uma conta ou nota de outro cliente responde 404.
+
+    Para acompanhar as notas, guarde o `next_after` de cada página e passe-o como
+    `after` na próxima chamada. Uma nota volta a aparecer sempre que muda (quando o XML
+    completo chega, quando é cancelada, quando a Ciência é feita).
+servers:
+  - url: /
+security:
+  - bearer: []
+paths:
+  /v1/accounts:
+    get:
+      operationId: listAccounts
+      summary: Lista as contas do cliente
+      responses:
+        "200":
+          description: As contas, por nome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountList"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/accounts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      operationId: getAccount
+      summary: Mostra uma conta, com o estado da varredura e do certificado
+      responses:
+        "200":
+          description: A conta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/accounts/{id}/certificate:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    put:
+      operationId: uploadCertificate
+      summary: Envia o certificado A1 da conta, substituindo o anterior
+      description: |
+        O certificado precisa ser do CNPJ da conta e estar válido. O arquivo e a senha
+        são guardados cifrados e nunca voltam pela API.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [pfx, password]
+              properties:
+                pfx:
+                  type: string
+                  format: binary
+                  description: Arquivo .pfx ou .p12, até 1 MB
+                password:
+                  type: string
+                  description: Senha do certificado
+      responses:
+        "200":
+          description: Certificado guardado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Certificate"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/accounts/{id}/pause:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      operationId: pauseAccount
+      summary: Pausa a varredura e a Ciência da conta
+      responses:
+        "200":
+          description: A conta pausada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/accounts/{id}/resume:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      operationId: resumeAccount
+      summary: Retoma a varredura da conta
+      responses:
+        "200":
+          description: A conta retomada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/accounts/{id}/scan:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      operationId: requestScan
+      summary: Pede uma varredura agora, se o limite de uma hora permitir
+      responses:
+        "202":
+          description: A varredura roda em até um minuto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanRequested"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429":
+          description: Ainda não passou uma hora desde a última consulta
+          headers:
+            Retry-After:
+              description: Segundos até a próxima varredura permitida
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanTooSoon"
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/accounts/{id}/notes:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      operationId: listNotes
+      summary: Lista as notas da conta que mudaram depois do cursor
+      parameters:
+        - name: after
+          in: query
+          description: O next_after da página anterior; 0 começa do início
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Até limit notas, da mudança mais antiga para a mais nova
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoteList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/notes/{id}/xml:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      operationId: getNoteXML
+      summary: Baixa o XML da nota, o completo quando já chegou, senão o resumo
+      responses:
+        "200":
+          description: O XML
+          headers:
+            X-Folio-Kind:
+              description: procNFe (nota completa) ou resNFe (resumo)
+              schema:
+                type: string
+          content:
+            application/xml:
+              schema:
+                type: string
+                format: binary
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/notes/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    get:
+      operationId: listNoteEvents
+      summary: Lista os eventos da nota
+      responses:
+        "200":
+          description: Os eventos, do mais antigo para o mais novo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /v1/notes/{id}/ciencia:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      operationId: requestCiencia
+      summary: Pede a Ciência da Operação da nota à mão
+      description: |
+        Só para contas com a Ciência automática desligada, ou para uma nota cuja
+        Ciência falhou. A próxima varredura envia.
+      responses:
+        "202":
+          description: A Ciência foi agendada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/Internal" }
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+  responses:
+    BadRequest:
+      description: Requisição fora do contrato
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Chave de API ausente, inválida ou revogada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Não existe, ou não é deste cliente
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: O estado atual não permite a operação
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooLarge:
+      description: Arquivo grande demais
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unprocessable:
+      description: O conteúdo foi recusado
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Internal:
+      description: Erro interno
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    ScanTooSoon:
+      type: object
+      required: [error, next_scan_at]
+      properties:
+        error:
+          type: string
+        next_scan_at:
+          type: string
+          format: date-time
+    ScanRequested:
+      type: object
+      required: [next_scan_at]
+      properties:
+        next_scan_at:
+          type: string
+          format: date-time
+    Env:
+      type: string
+      enum: [producao, homologacao]
+    Certificate:
+      type: object
+      required: [holder, cnpj, not_after, uploaded_at, expiring_soon, expired]
+      properties:
+        holder:
+          type: string
+        cnpj:
+          type: string
+        not_after:
+          type: string
+          format: date-time
+        uploaded_at:
+          type: string
+          format: date-time
+        expiring_soon:
+          type: boolean
+          description: Faltam 30 dias ou menos para vencer
+        expired:
+          type: boolean
+    Account:
+      type: object
+      required: [id, name, cnpj, uf, env, paused, auto_ciencia, ult_nsu, next_scan_at, last_scan_at, last_cstat, last_message, certificate]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cnpj:
+          type: string
+        uf:
+          type: integer
+        env:
+          $ref: "#/components/schemas/Env"
+        paused:
+          type: boolean
+        auto_ciencia:
+          type: boolean
+        ult_nsu:
+          type: integer
+          format: int64
+        next_scan_at:
+          type: string
+          format: date-time
+        last_scan_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_cstat:
+          type: string
+        last_message:
+          type: string
+        certificate:
+          allOf:
+            - $ref: "#/components/schemas/Certificate"
+          nullable: true
+    AccountList:
+      type: object
+      required: [accounts]
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Account"
+    NoteStatus:
+      type: string
+      enum: [resumo, completa, cancelada]
+    CienciaStatus:
+      type: string
+      enum: [pendente, feita, falhou, nao_aplica]
+    Note:
+      type: object
+      required: [id, key, emit_cnpj, emit_name, total_cents, issued_at, status, ciencia, has_full_xml, seq]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+          description: Chave de acesso, 44 dígitos
+        emit_cnpj:
+          type: string
+          description: CNPJ do emitente, ou CPF de uma pessoa física
+        emit_name:
+          type: string
+        total_cents:
+          type: integer
+          format: int64
+          description: Valor total da nota (vNF), em centavos
+        issued_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/NoteStatus"
+        ciencia:
+          $ref: "#/components/schemas/CienciaStatus"
+        has_full_xml:
+          type: boolean
+        seq:
+          type: integer
+          format: int64
+          description: Posição no cursor de mudanças
+    NoteList:
+      type: object
+      required: [notes, next_after]
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Note"
+        next_after:
+          type: integer
+          format: int64
+    Event:
+      type: object
+      required: [type, seq, description, at, origin, cstat]
+      properties:
+        type:
+          type: string
+          description: tpEvento, como 110111 (cancelamento) ou 210210 (Ciência)
+        seq:
+          type: integer
+        description:
+          type: string
+        at:
+          type: string
+          format: date-time
+        origin:
+          type: string
+          enum: [sefaz, folio]
+        cstat:
+          type: string
+    EventList:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/Event"
