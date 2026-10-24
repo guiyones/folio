@@ -19,6 +19,14 @@ import (
 // not set; `make test` sets it for the compose database.
 func New(t *testing.T) *sqlx.DB {
 	t.Helper()
+	db, _ := NewWithURL(t) // the URL is only for tests that open their own connection
+	return db
+}
+
+// NewWithURL is New that also returns the URL of the test database, for
+// code that opens its own connection, like the admin command.
+func NewWithURL(t *testing.T) (*sqlx.DB, string) {
+	t.Helper()
 
 	admin := os.Getenv("FOLIO_TEST_DB_URL")
 	if admin == "" {
@@ -70,5 +78,5 @@ func New(t *testing.T) *sqlx.DB {
 		t.Fatalf("migrating database %s: %v", name, err)
 	}
 
-	return dbT
+	return dbT, u.String()
 }
