@@ -285,9 +285,22 @@ func (s *Scanner) apply(ctx context.Context, tx *sqlx.Tx, a account.Account, doc
 		if err != nil {
 			return unreadable(err)
 		}
+		if issuedBy(e.Key, a.CNPJ) {
+			// An event on a note the account issued, like the customer's
+			// Confirmação da Operação: SEFAZ sends it to the issuer, but it
+			// is not a note received. The document stays stored.
+			log.Info("event on an issued note kept out of the notes", "nsu", d.NSU, "type", e.Type)
+			return nil
+		}
 		id := docID
 		return s.Notes.ApplyEvent(ctx, tx, a.ID, note.NewEvent{Event: e, Origin: note.OriginSEFAZ, DocID: &id})
 	}
+}
+
+// issuedBy tells whether the access key is of a note issued by cnpj: the
+// issuer's CNPJ takes digits 7 to 20 of the key.
+func issuedBy(key, cnpj string) bool {
+	return len(key) == 44 && key[6:20] == cnpj
 }
 
 // ciencia sends the due Ciência of the account, one note at a time, each

@@ -154,7 +154,17 @@ func (e *env) count(t *testing.T, table string) int {
 	return n
 }
 
-func key(i int) string { return fmt.Sprintf("4126101122233300018155001000000%03d10000012%02d", i, i) }
+// key is the access key of a note issued by DISTRIBUIDORA (99888777000166)
+// to the account.
+func key(i int) string { return fmt.Sprintf("4126109988877700016655001000000%03d10000012%02d", i, i) }
+
+// event is a procEventoNFe of type tp on the note k.
+func event(nsu int, k, tp string) dfetest.ZipDoc {
+	return dfetest.ZipDoc{NSU: int64(nsu), Schema: "procEventoNFe_v1.00.xsd", XML: `<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">` +
+		`<evento versao="1.00"><infEvento><chNFe>` + k + `</chNFe><dhEvento>2026-10-24T10:00:00-03:00</dhEvento>` +
+		`<tpEvento>` + tp + `</tpEvento><nSeqEvento>1</nSeqEvento><detEvento versao="1.00"><descEvento>evento</descEvento></detEvento>` +
+		`</infEvento></evento></procEventoNFe>`}
+}
 
 // summary is a resNFe issued one hour after the account was created, so
 // automatic Ciência applies.
@@ -444,6 +454,22 @@ func TestScanKeepsUnknownDocuments(t *testing.T) {
 	}
 	if a := e.reload(t); a.UltNSU != 2 {
 		t.Errorf("ult_nsu = %d", a.UltNSU)
+	}
+}
+
+func TestScanKeepsEventsOnOwnNotesOutOfNotes(t *testing.T) {
+	// The account's customer confirmed a note the account issued: SEFAZ
+	// sends the event to the issuer, but it is not a note received.
+	own := "41261011222333000181550010000022411100003944"
+	e := setup(t, docs("138", 2, 2, event(1, own, "210200"), event(2, key(2), "110111")))
+
+	e.run(t)
+	if n := e.count(t, "dfe_docs"); n != 2 {
+		t.Errorf("docs = %d, want both kept", n)
+	}
+	notes := e.notesAll(t)
+	if len(notes) != 1 || notes[0].Key != key(2) {
+		t.Errorf("notes = %+v, want only the received one", notes)
 	}
 }
 
