@@ -58,7 +58,7 @@ Para acompanhar as notas, guarde o `next_after` de cada página e passe como `af
 go run ./cmd/folio consulta --pfx certificado.pfx --uf 41 --amb 2
 ```
 
-Consulta a SEFAZ uma vez, mostra os documentos e grava os XMLs em `out/`. Em produção (`--amb 1`), rode com qualquer outra ferramenta que consulte o mesmo CNPJ pausada: duas consultas na mesma hora podem levar a SEFAZ a bloquear o CNPJ por consumo indevido (cStat 656).
+Consulta a SEFAZ uma vez, mostra os documentos e grava os XMLs em `out/`. No fim, diz o `--nsu` da próxima chamada e a partir de que horas ela pode rodar: depois de um 137, de um 656 ou do último documento, a SEFAZ pede 1 hora de espera. Em produção (`--amb 1`), rode com qualquer outra ferramenta que consulte o mesmo CNPJ pausada: duas consultas na mesma hora podem levar a SEFAZ a bloquear o CNPJ por consumo indevido (cStat 656).
 
 ## Desenvolvimento
 

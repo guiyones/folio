@@ -8,8 +8,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/guiyones/folio/dfe"
+	"github.com/guiyones/folio/internal/scan"
 )
 
 // consulta calls NFeDistribuicaoDFe once and prints and saves what came.
@@ -64,6 +66,7 @@ func consulta(ctx context.Context, args []string, out io.Writer) error {
 	}
 
 	fmt.Fprintf(out, "cStat %s: %s\nultNSU %d, maxNSU %d, %d documento(s)\n", r.CStat, r.Motivo, r.UltNSU, r.MaxNSU, len(r.Docs))
+	fmt.Fprintln(out, nextStep(r, *nsu, time.Now()))
 	if len(r.Docs) == 0 {
 		return nil
 	}
@@ -84,6 +87,29 @@ func consulta(ctx context.Context, args []string, out io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// nextStep tells which --nsu the next call starts from and when it may run.
+// After a 137, a 656 or the end of the documents, SEFAZ wants an hour; the
+// scan waits the same.
+func nextStep(r dfe.DistResult, sent int64, now time.Time) string {
+	later := func(nsu int64) string {
+		return fmt.Sprintf("próxima consulta: --nsu %d a partir de %s (a SEFAZ pede 1 hora de espera)", nsu, now.Add(scan.Wait).Format("15:04"))
+	}
+
+	switch r.CStat {
+	case dfe.CStatDocsFound:
+		if r.UltNSU < r.MaxNSU {
+			return fmt.Sprintf("há mais documentos: rode de novo com --nsu %d agora", r.UltNSU)
+		}
+		return later(r.UltNSU)
+	case dfe.CStatNoDocs:
+		return later(max(sent, r.UltNSU))
+	case dfe.CStatOveruse:
+		return later(sent)
+	default:
+		return fmt.Sprintf("a SEFAZ recusou a consulta; corrija o motivo e repita com --nsu %d", sent)
+	}
 }
 
 // describe is a one-line summary of a document for the terminal.
