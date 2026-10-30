@@ -1,3 +1,5 @@
+name: folio
+
 services:
   database:
     image: postgres:18-alpine
