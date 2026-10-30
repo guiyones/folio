@@ -7,12 +7,26 @@ import (
 	"encoding/hex"
 	"net/url"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/guiyones/folio/internal/platform/db"
 	"github.com/jmoiron/sqlx"
 )
+
+// reachable pings the test database once per test binary. When it is down,
+// every test fails at once instead of each one waiting for it.
+var reachable = sync.OnceValue(func() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	dbA, err := db.Open(ctx, os.Getenv("FOLIO_TEST_DB_URL"))
+	if err != nil {
+		return err
+	}
+	return dbA.Close()
+})
 
 // New creates an empty database next to FOLIO_TEST_DB_URL, migrates it and
 // drops it when the test finishes. The test is skipped when the variable is
@@ -31,6 +45,9 @@ func NewWithURL(t *testing.T) (*sqlx.DB, string) {
 	admin := os.Getenv("FOLIO_TEST_DB_URL")
 	if admin == "" {
 		t.Skip("FOLIO_TEST_DB_URL não definida")
+	}
+	if err := reachable(); err != nil {
+		t.Fatalf("o Postgres de teste não respondeu (rode make dev-up): %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
