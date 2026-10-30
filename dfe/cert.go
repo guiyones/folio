@@ -51,8 +51,20 @@ type Certificate struct {
 // The CNPJ comes from the ICP-Brasil otherName 2.16.76.1.3.3 and, when the
 // certificate lacks it, from the ":<14 digits>" suffix of the CN. Holder is
 // the CN without that suffix.
+//
+// A file in BER, as some issuers deliver it, is rewritten in DER first.
 func LoadPFX(data []byte, password string) (*Certificate, error) {
 	key, leaf, chain, err := pkcs12.DecodeChain(data, password)
+	if err != nil && !errors.Is(err, pkcs12.ErrIncorrectPassword) {
+		der, berErr := pfxToDER(data, password)
+		switch {
+		case errors.Is(berErr, ErrBadPassword):
+			return nil, ErrBadPassword
+		case berErr != nil:
+			return nil, fmt.Errorf("%w: %w (lido como BER: %w)", ErrInvalidPFX, err, berErr)
+		}
+		key, leaf, chain, err = pkcs12.DecodeChain(der, password)
+	}
 	if err != nil {
 		if errors.Is(err, pkcs12.ErrIncorrectPassword) {
 			return nil, ErrBadPassword
