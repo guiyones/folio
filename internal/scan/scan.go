@@ -177,6 +177,7 @@ func (s *Scanner) pages(ctx context.Context, sefaz SEFAZ, a account.Account, log
 
 		switch r.CStat {
 		case dfe.CStatNoDocs:
+			logAnswer(log, r, result)
 			return s.finish(ctx, a.ID, result, answered)
 		case dfe.CStatOveruse:
 			log.Warn("sefaz says consumo indevido", "motivo", r.Motivo)
@@ -204,12 +205,20 @@ func (s *Scanner) pages(ctx context.Context, sefaz SEFAZ, a account.Account, log
 		if err := s.store(ctx, a, r.Docs, result, answered, log); err != nil {
 			return err
 		}
+		logAnswer(log, r, result)
 		ult = result.UltNSU
 
 		if !more || page >= MaxPages {
 			return nil
 		}
 	}
+}
+
+// logAnswer records a 137 or a 138 once it is stored, so the log shows every
+// scan, not only the ones that went wrong.
+func logAnswer(log *slog.Logger, r dfe.DistResult, result account.ScanResult) {
+	log.Info("sefaz answered", "cstat", r.CStat, "motivo", r.Motivo, "ult_nsu", result.UltNSU,
+		"max_nsu", r.MaxNSU, "docs", len(r.Docs), "next_scan_at", result.Next)
 }
 
 // store saves one answer and the NSU it reached in one transaction under the

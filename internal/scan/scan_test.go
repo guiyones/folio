@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -454,6 +455,26 @@ func TestScanKeepsUnknownDocuments(t *testing.T) {
 	}
 	if a := e.reload(t); a.UltNSU != 2 {
 		t.Errorf("ult_nsu = %d", a.UltNSU)
+	}
+}
+
+func TestScanLogsEachAnswer(t *testing.T) {
+	e := setup(t, docs("138", 1, 1, summary(1)), docs("137", 1, 1))
+	e.sefaz.cienciaErr = errors.New("x")
+	var out bytes.Buffer
+	e.scanner.Log = slog.New(slog.NewTextHandler(&out, nil))
+
+	e.run(t)
+	e.now = e.now.Add(scan.Wait)
+	e.run(t)
+
+	for _, want := range []string{
+		"cstat=138 motivo=\"motivo 138\" ult_nsu=1 max_nsu=1 docs=1 next_scan_at=",
+		"cstat=137 motivo=\"motivo 137\" ult_nsu=1 max_nsu=1 docs=0 next_scan_at=",
+	} {
+		if !strings.Contains(out.String(), "level=INFO msg=\"sefaz answered\"") || !strings.Contains(out.String(), want) {
+			t.Errorf("log has no %q:\n%s", want, out.String())
+		}
 	}
 }
 
