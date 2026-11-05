@@ -4,7 +4,7 @@
 
 | # | Origem | Tipo | Tamanho | Descrição | Estado |
 |---|--------|------|---------|-----------|--------|
-| 1 | revisão | bug | P | `cmd/folio/serve.go:66` Se a API não sobe (porta ocupada), o processo fica vivo sem API e com a varredura rodando até chegar um sinal: `defer scanning.Wait()` espera um `Loop` que só para com o ctx do sinal. Corrigir com `context.WithCancel` e `defer cancel()` depois do Wait, e teste com a porta ocupada. | aberto |
+| 1 | revisão | bug | P | `cmd/folio/serve.go:66` Se a API não sobe (porta ocupada), o processo fica vivo sem API e com a varredura rodando até chegar um sinal: `defer scanning.Wait()` espera um `Loop` que só para com o ctx do sinal. Corrigir com `context.WithCancel` e `defer cancel()` depois do Wait, e teste com a porta ocupada. | feito |
 | 2 | revisão | melhoria | P | `internal/scan/scan.go:112` Erro de `connect` volta sem o id da conta, e o log não diz qual conta falhou. Embrulhar com `connecting account[%s]: %w`. | aberto |
 | 3 | revisão | bug | M | `internal/scan/scan.go:150` `err.Error()` de OpenCertificate, Dial e DistNSU vai para `last_message`, que a API devolve ao cliente (vaza key ID, detalhes de TLS e de URL). Gravar uma mensagem fixa e deixar o erro completo só no log; atualizar TestScanErrorKeepsEarlierPages e TestScanErrorOnFirstPage. | aberto |
 | 4 | revisão | melhoria | M | `internal/scan/scan_test.go` Nenhum teste cobre `connect` falhando por motivo que não é vencimento (chave rotacionada, Dial com erro). | aberto |

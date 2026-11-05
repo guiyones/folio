@@ -62,9 +62,13 @@ func serve(ctx context.Context, args []string) error {
 	notes := note.NewStore(conn)
 
 	// The scan stops with ctx; serve waits for it before closing the
-	// database, so a run in progress can record what it got.
+	// database, so a run in progress can record what it got. Defers run in
+	// reverse, so cancel stops the scan before Wait: serve returning for any
+	// reason, such as a busy port, ends the scan too.
+	ctx, stopScan := context.WithCancel(ctx)
 	var scanning sync.WaitGroup
 	defer scanning.Wait()
+	defer stopScan()
 
 	if !*noScan {
 		scanner := &scan.Scanner{
