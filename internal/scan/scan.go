@@ -147,12 +147,12 @@ func (s *Scanner) connect(ctx context.Context, a account.Account, now time.Time,
 	cert, err := account.OpenCertificate(a, stored, s.Box)
 	if err != nil {
 		log.Error("opening certificate", "err", err)
-		return nil, err.Error(), nil
+		return nil, "falha ao abrir o certificado", nil
 	}
 	sefaz, err := s.Dial(cert, a.Env)
 	if err != nil {
 		log.Error("building sefaz client", "err", err)
-		return nil, err.Error(), nil
+		return nil, "falha ao preparar a conexão com a SEFAZ", nil
 	}
 	return sefaz, "", nil
 }
@@ -170,7 +170,7 @@ func (s *Scanner) pages(ctx context.Context, sefaz SEFAZ, a account.Account, log
 
 		if err != nil {
 			log.Warn("distdfe", "err", err)
-			return s.finish(ctx, a.ID, account.ScanResult{UltNSU: ult, Next: wait, Message: err.Error()}, answered)
+			return s.finish(ctx, a.ID, account.ScanResult{UltNSU: ult, Next: wait, Message: "falha de comunicação com a SEFAZ"}, answered)
 		}
 
 		result := account.ScanResult{UltNSU: max(ult, r.UltNSU), Next: wait, CStat: r.CStat, Message: r.Motivo}

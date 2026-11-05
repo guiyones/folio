@@ -246,7 +246,7 @@ func TestScanErrorKeepsEarlierPages(t *testing.T) {
 
 	e.run(t)
 	a := e.reload(t)
-	if a.UltNSU != 1 || a.LastMessage != "conexão recusada" || !a.NextScanAt.Equal(t0.Add(scan.Wait)) {
+	if a.UltNSU != 1 || a.LastMessage != "falha de comunicação com a SEFAZ" || !a.NextScanAt.Equal(t0.Add(scan.Wait)) {
 		t.Errorf("account = %+v", a)
 	}
 	if n := e.count(t, "dfe_docs"); n != 1 {
@@ -259,7 +259,7 @@ func TestScanErrorOnFirstPage(t *testing.T) {
 
 	e.run(t)
 	a := e.reload(t)
-	if a.UltNSU != 0 || a.LastMessage != "timeout" || e.count(t, "dfe_docs") != 0 {
+	if a.UltNSU != 0 || a.LastMessage != "falha de comunicação com a SEFAZ" || e.count(t, "dfe_docs") != 0 {
 		t.Errorf("account = %+v", a)
 	}
 }
@@ -312,6 +312,39 @@ func TestScanConnectErrorNamesTheAccount(t *testing.T) {
 	_, err := e.scanner.RunOnce(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "connecting account "+e.account.ID.String()) {
 		t.Errorf("err = %v, want it to name account %s", err, e.account.ID)
+	}
+}
+
+// TestScanCertificateSealedWithOtherKey shows that a certificate folio cannot
+// open (the key was rotated) is recorded on the account with a fixed message,
+// not the cipher error, and SEFAZ is not called.
+func TestScanCertificateSealedWithOtherKey(t *testing.T) {
+	e := setup(t, docs("137", 0, 0))
+	other, err := crypt.NewBox("k2", bytes.Repeat([]byte{4}, 32))
+	if err != nil {
+		t.Fatalf("box: %v", err)
+	}
+	e.scanner.Box = other
+
+	e.run(t)
+	a := e.reload(t)
+	if len(e.sefaz.distCalls) != 0 || a.LastMessage != "falha ao abrir o certificado" || !a.NextScanAt.Equal(e.now.Add(scan.Wait)) {
+		t.Errorf("calls %d, account %+v", len(e.sefaz.distCalls), a)
+	}
+}
+
+// TestScanDialError shows that a client that cannot be built is recorded
+// with a fixed message, not the TLS error.
+func TestScanDialError(t *testing.T) {
+	e := setup(t, docs("137", 0, 0))
+	e.scanner.Dial = func(*dfe.Certificate, dfe.Env) (scan.SEFAZ, error) {
+		return nil, errors.New("tls: bad certificate from https://nfe.sefaz.example")
+	}
+
+	e.run(t)
+	a := e.reload(t)
+	if len(e.sefaz.distCalls) != 0 || a.LastMessage != "falha ao preparar a conexão com a SEFAZ" || !a.NextScanAt.Equal(e.now.Add(scan.Wait)) {
+		t.Errorf("calls %d, account %+v", len(e.sefaz.distCalls), a)
 	}
 }
 
