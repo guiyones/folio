@@ -301,6 +301,20 @@ func TestScanExpiredCert(t *testing.T) {
 	}
 }
 
+// TestScanConnectErrorNamesTheAccount shows that a failure reading the
+// certificate says which account it was, like the other steps do.
+func TestScanConnectErrorNamesTheAccount(t *testing.T) {
+	e := setup(t, docs("137", 0, 0))
+	if _, err := e.db.Exec(`ALTER TABLE certificates RENAME COLUMN holder TO holder_gone`); err != nil {
+		t.Fatalf("alter: %v", err)
+	}
+
+	_, err := e.scanner.RunOnce(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "connecting account "+e.account.ID.String()) {
+		t.Errorf("err = %v, want it to name account %s", err, e.account.ID)
+	}
+}
+
 func TestScanSkipsPausedAndNotDue(t *testing.T) {
 	e := setup(t, docs("137", 0, 0))
 	ctx := context.Background()

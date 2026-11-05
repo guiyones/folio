@@ -111,7 +111,7 @@ func (s *Scanner) RunOnce(ctx context.Context) (ran bool, err error) {
 
 	sefaz, problem, err := s.connect(ctx, a, now, log)
 	if err != nil {
-		return true, err
+		return true, fmt.Errorf("connecting account %s: %w", a.ID, err)
 	}
 	if problem != "" {
 		return true, s.finish(ctx, a.ID, account.ScanResult{UltNSU: a.UltNSU, Next: now.Add(Wait), Message: problem}, now)

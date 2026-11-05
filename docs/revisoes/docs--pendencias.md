@@ -1,9 +1,9 @@
 # Revisão guiada: docs/pendencias.md
 hash: 5e41b45225491571a9b3582fe999c7b7d0d6756d
-atualizado: 2026-11-05 14:53
+atualizado: 2026-11-05 15:12
 
 1. [feito] Se a API não sobe (porta ocupada), o processo fica vivo sem API e com 
-2. [pendente] Erro de `connect` volta sem o id da conta, e o log não diz qual conta 
+2. [feito] Erro de `connect` volta sem o id da conta, e o log não diz qual conta 
 3. [pendente] `err.Error()` de OpenCertificate, Dial e DistNSU vai para `last_messag
 4. [pendente] Nenhum teste cobre `connect` falhando por motivo que não é vencimento 
 5. [pendente] A regra de quem pode pedir a Ciência, a transação e o lock ficam no ha
