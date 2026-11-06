@@ -41,7 +41,11 @@ func (s *Store) SaveDoc(ctx context.Context, tx account.LockedTx, accountID uuid
 	err := tx.GetContext(ctx, &id, qi, uuid.NewV7().String(), accountID.String(), d.NSU, d.Schema, d.XML, now)
 	switch {
 	case err == nil:
-		return parseID(id, true)
+		docID, err := parseDocID(id)
+		if err != nil {
+			return uuid.Nil(), false, err
+		}
+		return docID, true, nil
 	case !errors.Is(err, sql.ErrNoRows):
 		return uuid.Nil(), false, fmt.Errorf("storing doc %d: %w", d.NSU, db.Map(err))
 	}
@@ -50,7 +54,8 @@ func (s *Store) SaveDoc(ctx context.Context, tx account.LockedTx, accountID uuid
 	if err := tx.GetContext(ctx, &id, qs, accountID.String(), d.NSU); err != nil {
 		return uuid.Nil(), false, fmt.Errorf("querying doc %d: %w", d.NSU, db.Map(err))
 	}
-	return parseID(id, false)
+	docID, err := parseDocID(id)
+	return docID, false, err
 }
 
 // ApplySummary records a resNFe. A new note starts as a summary, or as
@@ -347,12 +352,12 @@ func toNotes(rows []dbNote) ([]Note, error) {
 	return notes, nil
 }
 
-func parseID(s string, isNew bool) (uuid.UUID, bool, error) {
+func parseDocID(s string) (uuid.UUID, error) {
 	id, err := uuid.Parse(s)
 	if err != nil {
-		return uuid.Nil(), false, fmt.Errorf("parsing doc id %q: %w", s, err)
+		return uuid.Nil(), fmt.Errorf("parsing doc id %q: %w", s, err)
 	}
-	return id, isNew, nil
+	return id, nil
 }
 
 func mapErr(err error) error {
