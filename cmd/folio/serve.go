@@ -72,7 +72,6 @@ func serve(ctx context.Context, args []string) error {
 
 	if !*noScan {
 		scanner := &scan.Scanner{
-			DB:       conn,
 			Accounts: accounts,
 			Notes:    notes,
 			Box:      box,
@@ -88,7 +87,6 @@ func serve(ctx context.Context, args []string) error {
 	srv := &http.Server{
 		Addr: addr,
 		Handler: httpapi.New(httpapi.Deps{
-			DB:       conn,
 			Accounts: accounts,
 			Notes:    notes,
 			Clients:  apiclient.NewStore(conn),

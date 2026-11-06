@@ -21,8 +21,6 @@ import (
 	"github.com/guiyones/folio/internal/account"
 	"github.com/guiyones/folio/internal/note"
 	"github.com/guiyones/folio/internal/platform/crypt"
-	"github.com/guiyones/folio/internal/platform/db"
-	"github.com/jmoiron/sqlx"
 )
 
 // Limits of the scan.
@@ -61,7 +59,6 @@ type Dialer func(cert *dfe.Certificate, env dfe.Env) (SEFAZ, error)
 
 // Scanner scans the accounts that are due.
 type Scanner struct {
-	DB       *sqlx.DB
 	Accounts *account.Store
 	Notes    *note.Store
 	Box      *crypt.Box
@@ -224,11 +221,7 @@ func logAnswer(log *slog.Logger, r dfe.DistResult, result account.ScanResult) {
 // store saves one answer and the NSU it reached in one transaction under the
 // account lock.
 func (s *Scanner) store(ctx context.Context, a account.Account, docs []dfe.Doc, r account.ScanResult, now time.Time, log *slog.Logger) error {
-	return db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
-		locked, err := s.Accounts.Lock(ctx, tx, a.ID)
-		if err != nil {
-			return err
-		}
+	return s.Accounts.WithLock(ctx, a.ID, func(tx account.LockedTx) error {
 		for _, d := range docs {
 			docID, isNew, err := s.Notes.SaveDoc(ctx, tx, a.ID, d, now)
 			if err != nil {
@@ -237,21 +230,18 @@ func (s *Scanner) store(ctx context.Context, a account.Account, docs []dfe.Doc, 
 			if !isNew {
 				continue
 			}
-			if err := s.apply(ctx, tx, locked, docID, d, log); err != nil {
+			if err := s.apply(ctx, tx, docID, d, log); err != nil {
 				return fmt.Errorf("NSU %d: %w", d.NSU, err)
 			}
 		}
-		return s.Accounts.FinishScan(ctx, tx, a.ID, r, now)
+		return s.Accounts.FinishScan(ctx, tx, r, now)
 	})
 }
 
 // finish records how the run ended, without documents.
 func (s *Scanner) finish(ctx context.Context, id uuid.UUID, r account.ScanResult, now time.Time) error {
-	err := db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
-		if _, err := s.Accounts.Lock(ctx, tx, id); err != nil {
-			return err
-		}
-		return s.Accounts.FinishScan(ctx, tx, id, r, now)
+	err := s.Accounts.WithLock(ctx, id, func(tx account.LockedTx) error {
+		return s.Accounts.FinishScan(ctx, tx, r, now)
 	})
 	if err != nil {
 		return fmt.Errorf("recording the scan of %s: %w", id, err)
@@ -262,7 +252,8 @@ func (s *Scanner) finish(ctx context.Context, id uuid.UUID, r account.ScanResult
 // apply turns a new document into a note or an event. A document folio
 // cannot read stays stored and is only logged, so one odd document never
 // stops the scan.
-func (s *Scanner) apply(ctx context.Context, tx *sqlx.Tx, a account.Account, docID uuid.UUID, d dfe.Doc, log *slog.Logger) error {
+func (s *Scanner) apply(ctx context.Context, tx account.LockedTx, docID uuid.UUID, d dfe.Doc, log *slog.Logger) error {
+	a := tx.Account
 	kind, err := dfe.KindOf(d.Schema)
 	if err != nil {
 		log.Warn("unknown document kept as is", "nsu", d.NSU, "schema", d.Schema)
@@ -328,10 +319,7 @@ func (s *Scanner) ciencia(ctx context.Context, sefaz SEFAZ, a account.Account, l
 			log.Warn("ciência", "key", n.Key, "err", sendErr)
 		}
 
-		err := db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
-			if _, err := s.Accounts.Lock(ctx, tx, a.ID); err != nil {
-				return err
-			}
+		err := s.Accounts.WithLock(ctx, a.ID, func(tx account.LockedTx) error {
 			if sendErr != nil {
 				return s.Notes.CienciaFailed(ctx, tx, n.ID, at.Add(CienciaRetry))
 			}

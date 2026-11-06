@@ -8,8 +8,8 @@ import (
 	"uuid"
 
 	"github.com/guiyones/folio/dfe"
+	"github.com/guiyones/folio/internal/account"
 	"github.com/guiyones/folio/internal/note"
-	"github.com/guiyones/folio/internal/platform/db"
 	"github.com/guiyones/folio/internal/platform/db/dbtest"
 	"github.com/jmoiron/sqlx"
 )
@@ -51,10 +51,11 @@ func setup(t *testing.T) *fixture {
 	return f
 }
 
-// tx runs fn in a transaction and fails the test on error.
-func (f *fixture) tx(t *testing.T, fn func(tx *sqlx.Tx) error) {
+// tx runs fn in a transaction holding the account lock, like the scan, and
+// fails the test on error.
+func (f *fixture) tx(t *testing.T, fn func(tx account.LockedTx) error) {
 	t.Helper()
-	if err := db.WithTx(context.Background(), f.db, fn); err != nil {
+	if err := account.NewStore(f.db).WithLock(context.Background(), f.account, fn); err != nil {
 		t.Fatalf("tx: %v", err)
 	}
 }
@@ -63,7 +64,7 @@ func (f *fixture) doc(t *testing.T, schema string) uuid.UUID {
 	t.Helper()
 	f.nsu++
 	var id uuid.UUID
-	f.tx(t, func(tx *sqlx.Tx) error {
+	f.tx(t, func(tx account.LockedTx) error {
 		var err error
 		id, _, err = f.st.SaveDoc(context.Background(), tx, f.account, dfe.Doc{NSU: f.nsu, Schema: schema, XML: []byte("<" + schema + "/>")}, now)
 		return err
@@ -74,7 +75,7 @@ func (f *fixture) doc(t *testing.T, schema string) uuid.UUID {
 func (f *fixture) summary(t *testing.T, n dfe.Note, cutoff time.Time, auto bool) {
 	t.Helper()
 	doc := f.doc(t, "resNFe_v1.01.xsd")
-	f.tx(t, func(tx *sqlx.Tx) error {
+	f.tx(t, func(tx account.LockedTx) error {
 		return f.st.ApplySummary(context.Background(), tx, f.account, doc, n, cutoff, auto)
 	})
 }
@@ -82,14 +83,14 @@ func (f *fixture) summary(t *testing.T, n dfe.Note, cutoff time.Time, auto bool)
 func (f *fixture) full(t *testing.T, n dfe.Note) {
 	t.Helper()
 	doc := f.doc(t, "procNFe_v4.00.xsd")
-	f.tx(t, func(tx *sqlx.Tx) error {
+	f.tx(t, func(tx account.LockedTx) error {
 		return f.st.ApplyFull(context.Background(), tx, f.account, doc, n)
 	})
 }
 
 func (f *fixture) event(t *testing.T, typ string) {
 	t.Helper()
-	f.tx(t, func(tx *sqlx.Tx) error {
+	f.tx(t, func(tx account.LockedTx) error {
 		return f.st.ApplyEvent(context.Background(), tx, f.account, note.NewEvent{
 			Event:  dfe.Event{Key: key, Type: typ, Seq: 1, Description: "evento", At: now},
 			Origin: note.OriginSEFAZ,
@@ -200,7 +201,7 @@ func TestSaveDocIdempotent(t *testing.T) {
 
 	var a, b uuid.UUID
 	var newA, newB bool
-	f.tx(t, func(tx *sqlx.Tx) error {
+	f.tx(t, func(tx account.LockedTx) error {
 		var err error
 		if a, newA, err = f.st.SaveDoc(ctx, tx, f.account, d, now); err != nil {
 			return err

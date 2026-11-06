@@ -5,10 +5,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/guiyones/folio/internal/account"
 	"github.com/guiyones/folio/internal/httpapi/gen"
 	"github.com/guiyones/folio/internal/note"
-	"github.com/guiyones/folio/internal/platform/db"
-	"github.com/jmoiron/sqlx"
 )
 
 // defaultPage is the page size when the client sends no limit.
@@ -105,21 +104,13 @@ func (s *server) RequestCiencia(ctx context.Context, req gen.RequestCienciaReque
 	conflict := func(msg string) gen.RequestCienciaResponseObject {
 		return gen.RequestCiencia409JSONResponse{ConflictJSONResponse: gen.ConflictJSONResponse(errorBody(msg))}
 	}
-	switch {
-	case n.Ciencia == note.CienciaFailed:
-	case n.Ciencia == note.CienciaNotApplicable && !a.AutoCiencia:
-	case n.Ciencia == note.CienciaNotApplicable:
-		return conflict("a conta faz a Ciência sozinha; esta nota não precisa dela"), nil
-	default:
-		return conflict("a Ciência desta nota já está " + string(n.Ciencia)), nil
+	if err := note.CanRequestCiencia(n, a.AutoCiencia); err != nil {
+		return conflict(err.Error()), nil
 	}
 
 	// The change takes a new cursor number, so it runs under the account
 	// lock, like the scan.
-	err = db.WithTx(ctx, s.DB, func(tx *sqlx.Tx) error {
-		if _, err := s.Accounts.Lock(ctx, tx, a.ID); err != nil {
-			return err
-		}
+	err = s.Accounts.WithLock(ctx, a.ID, func(tx account.LockedTx) error {
 		return s.Notes.RequestCiencia(ctx, tx, n.ID)
 	})
 	if errors.Is(err, note.ErrConflict) {

@@ -3,8 +3,8 @@
 // note. Every change to a note takes a new number from one sequence, the
 // cursor clients read changes by.
 //
-// Writes run inside a transaction that already holds the account lock (see
-// account.Store.LockDue and Lock), so the numbers of one account are
+// Writes take an account.LockedTx, a transaction that holds the account lock
+// (see account.Store.WithLock), so the numbers of one account are
 // committed in order and a client reading by cursor never skips a note.
 package note
 
@@ -19,6 +19,9 @@ var (
 	ErrNotFound = errors.New("nota não encontrada")
 	ErrNoXML    = errors.New("a nota ainda não tem XML")
 	ErrConflict = errors.New("a nota não está num estado que permita isso")
+
+	ErrAutoCiencia  = errors.New("a conta faz a Ciência sozinha; esta nota não precisa dela")
+	ErrCienciaState = errors.New("a Ciência desta nota já está")
 )
 
 // Status is how far folio got with a note.

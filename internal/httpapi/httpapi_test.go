@@ -22,7 +22,6 @@ import (
 	"github.com/guiyones/folio/internal/httpapi"
 	"github.com/guiyones/folio/internal/note"
 	"github.com/guiyones/folio/internal/platform/crypt"
-	"github.com/guiyones/folio/internal/platform/db"
 	"github.com/guiyones/folio/internal/platform/db/dbtest"
 	"github.com/jmoiron/sqlx"
 )
@@ -61,7 +60,6 @@ func setup(t *testing.T) *api {
 
 	a := &api{t: t, db: conn, accounts: account.NewStore(conn), notes: note.NewStore(conn), clients: apiclient.NewStore(conn), box: box, now: t0}
 	a.srv = httptest.NewServer(httpapi.New(httpapi.Deps{
-		DB:       conn,
 		Accounts: a.accounts,
 		Notes:    a.notes,
 		Clients:  a.clients,
@@ -426,7 +424,7 @@ func (a *api) addNote(acc account.Account, k string, nsu int64, full bool) note.
 	ctx := context.Background()
 	n := dfe.Note{Key: k, EmitCNPJ: "99888777000166", EmitName: "DISTRIBUIDORA", TotalCents: 1000, IssuedAt: t0.Add(time.Hour), Situation: dfe.Authorized}
 
-	err := db.WithTx(ctx, a.db, func(tx *sqlx.Tx) error {
+	err := a.accounts.WithLock(ctx, acc.ID, func(tx account.LockedTx) error {
 		doc, _, err := a.notes.SaveDoc(ctx, tx, acc.ID, dfe.Doc{NSU: nsu, Schema: "resNFe_v1.01.xsd", XML: []byte("<resNFe/>")}, t0)
 		if err != nil {
 			return err
@@ -554,7 +552,7 @@ func TestNoteEvents(t *testing.T) {
 	n := a.addNote(tn.account, key, 1, false)
 
 	ctx := context.Background()
-	err := db.WithTx(ctx, a.db, func(tx *sqlx.Tx) error {
+	err := a.accounts.WithLock(ctx, tn.account.ID, func(tx account.LockedTx) error {
 		return a.notes.ApplyEvent(ctx, tx, tn.account.ID, note.NewEvent{
 			Event:  dfe.Event{Key: key, Type: dfe.EventCancel, Seq: 1, Description: "Cancelamento", At: t0},
 			Origin: note.OriginSEFAZ,

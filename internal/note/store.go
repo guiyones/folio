@@ -9,6 +9,7 @@ import (
 	"uuid"
 
 	"github.com/guiyones/folio/dfe"
+	"github.com/guiyones/folio/internal/account"
 	"github.com/guiyones/folio/internal/platform/db"
 	"github.com/jmoiron/sqlx"
 )
@@ -29,7 +30,7 @@ func NewStore(db *sqlx.DB) *Store {
 // SaveDoc stores a document received under an NSU. A repeated NSU returns
 // the stored document with isNew false, so a scan that runs again after a
 // failure does not apply it twice.
-func (s *Store) SaveDoc(ctx context.Context, tx *sqlx.Tx, accountID uuid.UUID, d dfe.Doc, now time.Time) (uuid.UUID, bool, error) {
+func (s *Store) SaveDoc(ctx context.Context, tx account.LockedTx, accountID uuid.UUID, d dfe.Doc, now time.Time) (uuid.UUID, bool, error) {
 	const qi = `
 	INSERT INTO dfe_docs (id, account_id, nsu, schema, xml, received_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
@@ -60,7 +61,7 @@ func (s *Store) SaveDoc(ctx context.Context, tx *sqlx.Tx, accountID uuid.UUID, d
 // A note that is already complete keeps its data and only gains the link to
 // the summary. Cancelled wins over everything, then denied; a note that
 // becomes cancelled or denied no longer needs its pending Ciência.
-func (s *Store) ApplySummary(ctx context.Context, tx *sqlx.Tx, accountID, docID uuid.UUID, n dfe.Note, cutoff time.Time, auto bool) error {
+func (s *Store) ApplySummary(ctx context.Context, tx account.LockedTx, accountID, docID uuid.UUID, n dfe.Note, cutoff time.Time, auto bool) error {
 	status := StatusSummary
 	switch n.Situation {
 	case dfe.Cancelled:
@@ -111,7 +112,7 @@ func (s *Store) ApplySummary(ctx context.Context, tx *sqlx.Tx, accountID, docID 
 // protocol says so, unless it was cancelled, and takes its data from the
 // full XML. A pending Ciência is no longer needed, since the XML it would
 // release already came.
-func (s *Store) ApplyFull(ctx context.Context, tx *sqlx.Tx, accountID, docID uuid.UUID, n dfe.Note) error {
+func (s *Store) ApplyFull(ctx context.Context, tx account.LockedTx, accountID, docID uuid.UUID, n dfe.Note) error {
 	status := StatusFull
 	if n.Situation == dfe.Denied {
 		status = StatusDenied
@@ -154,7 +155,7 @@ type NewEvent struct {
 // ApplyEvent attaches an event to its note, creating the note when the event
 // arrives first. A cancellation (110111) makes the note cancelled. The same
 // event twice is stored once.
-func (s *Store) ApplyEvent(ctx context.Context, tx *sqlx.Tx, accountID uuid.UUID, ne NewEvent) error {
+func (s *Store) ApplyEvent(ctx context.Context, tx account.LockedTx, accountID uuid.UUID, ne NewEvent) error {
 	e := ne.Event
 	cancel := e.Type == dfe.EventCancel
 

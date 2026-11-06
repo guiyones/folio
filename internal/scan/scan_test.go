@@ -108,7 +108,6 @@ func setup(t *testing.T, script ...answer) *env {
 	}
 
 	e.scanner = &scan.Scanner{
-		DB:       conn,
 		Accounts: e.accounts,
 		Notes:    e.notes,
 		Box:      box,

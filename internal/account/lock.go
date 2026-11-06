@@ -53,17 +53,35 @@ func (s *Store) Claim(ctx context.Context, now, reserve time.Time) (a Account, f
 	return a, found, nil
 }
 
-// Lock locks the account inside tx, waiting for a scan that holds it, and
-// returns it. Writes to the notes of an account outside the scan take this
-// lock first, so the change cursor stays in commit order.
-func (s *Store) Lock(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) (Account, error) {
-	const q = `SELECT ` + columns + ` FROM accounts WHERE id = $1 FOR UPDATE`
+// LockedTx is a transaction that holds the lock of one account. Writes to
+// the notes of an account take one, and only WithLock makes it, so a write
+// cannot forget the lock that keeps the change cursor in commit order.
+type LockedTx struct {
+	*lockedTx
+	Account Account // the account as read under the lock
+}
 
-	var row dbAccount
-	if err := tx.GetContext(ctx, &row, q, id.String()); err != nil {
-		return Account{}, fmt.Errorf("locking account: %w", mapErr(err))
-	}
-	return row.toAccount()
+// lockedTx keeps the transaction field unexported: code outside this
+// package uses its methods but cannot build a LockedTx around any tx.
+type lockedTx = sqlx.Tx
+
+// WithLock runs fn in a transaction that holds the lock of the account,
+// waiting for a scan that holds it. The transaction commits when fn returns
+// nil and rolls back otherwise.
+func (s *Store) WithLock(ctx context.Context, id uuid.UUID, fn func(tx LockedTx) error) error {
+	return db.WithTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		const q = `SELECT ` + columns + ` FROM accounts WHERE id = $1 FOR UPDATE`
+
+		var row dbAccount
+		if err := tx.GetContext(ctx, &row, q, id.String()); err != nil {
+			return fmt.Errorf("locking account: %w", mapErr(err))
+		}
+		a, err := row.toAccount()
+		if err != nil {
+			return err
+		}
+		return fn(LockedTx{lockedTx: tx, Account: a})
+	})
 }
 
 // ScanResult is how a scan of an account ended.
@@ -74,9 +92,9 @@ type ScanResult struct {
 	Message string
 }
 
-// FinishScan records how far a scan got, inside a transaction that holds the
-// account lock. The stored ult_nsu never goes back, whatever SEFAZ answered.
-func (s *Store) FinishScan(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, r ScanResult, now time.Time) error {
+// FinishScan records how far a scan of the locked account got. The stored
+// ult_nsu never goes back, whatever SEFAZ answered.
+func (s *Store) FinishScan(ctx context.Context, tx LockedTx, r ScanResult, now time.Time) error {
 	const q = `
 	UPDATE accounts SET
 		ult_nsu = GREATEST(ult_nsu, $2),
@@ -86,7 +104,7 @@ func (s *Store) FinishScan(ctx context.Context, tx *sqlx.Tx, id uuid.UUID, r Sca
 		last_message = $6
 	WHERE id = $1`
 
-	res, err := tx.ExecContext(ctx, q, id.String(), r.UltNSU, r.Next, now, r.CStat, r.Message)
+	res, err := tx.ExecContext(ctx, q, tx.Account.ID.String(), r.UltNSU, r.Next, now, r.CStat, r.Message)
 	if err != nil {
 		return fmt.Errorf("finishing scan: %w", db.Map(err))
 	}

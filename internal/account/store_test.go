@@ -232,3 +232,45 @@ func TestCertificate(t *testing.T) {
 		t.Errorf("second delete: err = %v, want ErrNoCertificate", err)
 	}
 }
+
+func TestWithLock(t *testing.T) {
+	db := dbtest.New(t)
+	st := account.NewStore(db)
+	ctx := context.Background()
+
+	a, err := st.Create(ctx, newAccount(newClient(t, db, "cadim")), now)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// fn gets the locked account; a write in it commits.
+	err = st.WithLock(ctx, a.ID, func(tx account.LockedTx) error {
+		if tx.Account.ID != a.ID {
+			t.Errorf("locked account = %s, want %s", tx.Account.ID, a.ID)
+		}
+		return st.FinishScan(ctx, tx, account.ScanResult{UltNSU: 130, Next: now, Message: "ok"}, now)
+	})
+	if err != nil {
+		t.Fatalf("with lock: %v", err)
+	}
+
+	// An error from fn rolls the write back.
+	boom := errors.New("boom")
+	err = st.WithLock(ctx, a.ID, func(tx account.LockedTx) error {
+		if err := st.FinishScan(ctx, tx, account.ScanResult{UltNSU: 999, Next: now}, now); err != nil {
+			return err
+		}
+		return boom
+	})
+	if !errors.Is(err, boom) {
+		t.Errorf("err = %v, want boom", err)
+	}
+	got, err := st.ByID(ctx, a.ID)
+	if err != nil || got.UltNSU != 130 || got.LastMessage != "ok" {
+		t.Errorf("account = %+v, %v; want ult_nsu 130 kept", got, err)
+	}
+
+	if err := st.WithLock(ctx, uuid.NewV7(), func(account.LockedTx) error { return nil }); !errors.Is(err, account.ErrNotFound) {
+		t.Errorf("unknown account: err = %v, want ErrNotFound", err)
+	}
+}

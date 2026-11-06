@@ -1,13 +1,13 @@
 # Revisão guiada: docs/pendencias.md
 hash: 5e41b45225491571a9b3582fe999c7b7d0d6756d
-atualizado: 2026-11-05 17:01
+atualizado: 2026-11-05 21:52
 
 1. [feito] Se a API não sobe (porta ocupada), o processo fica vivo sem API e com 
 2. [feito] Erro de `connect` volta sem o id da conta, e o log não diz qual conta 
 3. [feito] `err.Error()` de OpenCertificate, Dial e DistNSU vai para `last_messag
 4. [feito] Nenhum teste cobre `connect` falhando por motivo que não é vencimento 
-5. [pendente] A regra de quem pode pedir a Ciência, a transação e o lock ficam no ha
-6. [pendente] A regra "escrita em notas sob o lock da conta" é garantida só por quem
+5. [feito] A regra de quem pode pedir a Ciência, a transação e o lock ficam no ha
+6. [feito] A regra "escrita em notas sob o lock da conta" é garantida só por quem
 7. [pendente] Linha reescreve `findDSig(root, "Signature")` à mão; o find por Id apa
 8. [pendente] `decodeChild` com `local==""` muda de modo; a mensagem sai sem o nome.
 9. [pendente] `utf16.Encode` sobra depois de recusar `r > 0xffff`; tirar o import. 
@@ -27,7 +27,7 @@ atualizado: 2026-11-05 17:01
 23. [pendente] `id := docID` só para tirar o endereço; usar `&docID`. 
 24. [pendente] `plain[:prefixLen]` repete `Prefix()`. 
 25. [pendente] Valor padrão com `if`; usar `cmp.Or`. 
-26. [pendente] O comentário cita `LockDue`, que não existe (o certo é `Claim`/`Lock`)
+26. [feito] O comentário cita `LockDue`, que não existe (o certo é `Claim`/`Lock`)
 27. [pendente] Erro de `KindOf` descartado sem comentário; o schema real some. 
 28. [pendente] (e consulta, serve) `-h` sai como "erro: flag: help requested", com ex
 29. [pendente] `resp.Body.Close()` sem checar e sem comentário. 
@@ -39,3 +39,4 @@ atualizado: 2026-11-05 17:01
 35. [pendente]  Testes de account/note/scan/httpapi sem `t.Parallel()`, embora cada u
 36. [pendente] O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover
 37. [pendente] O layout não segue app/business/foundation. Não migrar agora; o primei
+38. [pendente] Sobra do #5: RequestScan ainda repete no handler a condição do Claim

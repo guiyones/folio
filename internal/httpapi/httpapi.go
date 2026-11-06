@@ -20,7 +20,6 @@ import (
 	"github.com/guiyones/folio/internal/httpapi/gen"
 	"github.com/guiyones/folio/internal/note"
 	"github.com/guiyones/folio/internal/platform/crypt"
-	"github.com/jmoiron/sqlx"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 )
 
@@ -32,7 +31,6 @@ const certWarn = 30 * 24 * time.Hour
 
 // Deps is what the API needs.
 type Deps struct {
-	DB       *sqlx.DB
 	Accounts *account.Store
 	Notes    *note.Store
 	Clients  *apiclient.Store
