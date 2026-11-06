@@ -85,11 +85,19 @@ func (s *server) validate(next http.Handler) http.Handler {
 			ExcludeRequestBody: true,
 			AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
 		},
-		ErrorHandler: func(w http.ResponseWriter, message string, status int) {
-			if status == http.StatusNotFound {
-				message = "rota não encontrada"
+		ErrorHandlerWithOpts: func(_ context.Context, err error, w http.ResponseWriter, _ *http.Request, opts middleware.ErrorHandlerOpts) {
+			// The validator reads the whole body before the handler, so a
+			// body over limitBody's cap fails here; say so instead of the
+			// status the validator suggests.
+			var tooBig *http.MaxBytesError
+			switch {
+			case errors.As(err, &tooBig):
+				writeError(w, http.StatusRequestEntityTooLarge, "a requisição passa de 2 MB")
+			case opts.StatusCode == http.StatusNotFound:
+				writeError(w, http.StatusNotFound, "rota não encontrada")
+			default:
+				writeError(w, opts.StatusCode, err.Error())
 			}
-			writeError(w, status, message)
 		},
 		DoNotValidateServers: true,
 	})(next)
