@@ -44,3 +44,14 @@ func TestNextStep(t *testing.T) {
 		}
 	}
 }
+
+// A schema folio does not read still gets a line, and the line shows it.
+func TestDocLineUnknownSchema(t *testing.T) {
+	kind, line := docLine(dfe.Doc{NSU: 7, Schema: "resNovo_v9.99.xsd"})
+	if kind != "desconhecido" {
+		t.Errorf("kind = %q, want desconhecido", kind)
+	}
+	if !strings.Contains(line, "resNovo_v9.99.xsd") {
+		t.Errorf("line = %q, want it to show the schema", line)
+	}
+}

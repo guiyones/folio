@@ -75,11 +75,8 @@ func consulta(ctx context.Context, args []string, out io.Writer) error {
 		return fmt.Errorf("criando %s: %w", *outDir, err)
 	}
 	for _, d := range r.Docs {
-		kind, err := dfe.KindOf(d.Schema)
-		if err != nil {
-			kind = "desconhecido"
-		}
-		fmt.Fprintf(out, "%15d  %-14s %s\n", d.NSU, kind, describe(kind, d.XML))
+		kind, line := docLine(d)
+		fmt.Fprintln(out, line)
 
 		name := filepath.Join(*outDir, fmt.Sprintf("%015d-%s.xml", d.NSU, kind))
 		if err := os.WriteFile(name, d.XML, 0o600); err != nil {
@@ -110,6 +107,20 @@ func nextStep(r dfe.DistResult, sent int64, now time.Time) string {
 	default:
 		return fmt.Sprintf("a SEFAZ recusou a consulta; corrija o motivo e repita com --nsu %d", sent)
 	}
+}
+
+// docLine is the terminal line for a document and the kind its file is
+// named after.
+func docLine(d dfe.Doc) (dfe.Kind, string) {
+	kind, err := dfe.KindOf(d.Schema)
+	if err != nil {
+		// A schema folio does not read is not a failure of the query: the XML
+		// is still saved, as "desconhecido", and the line shows the schema
+		// SEFAZ sent so it can be looked up.
+		const unknown = "desconhecido"
+		return unknown, fmt.Sprintf("%15d  %-14s schema %s", d.NSU, unknown, d.Schema)
+	}
+	return kind, fmt.Sprintf("%15d  %-14s %s", d.NSU, kind, describe(kind, d.XML))
 }
 
 // describe is a one-line summary of a document for the terminal.
