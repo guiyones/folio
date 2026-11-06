@@ -17,7 +17,7 @@
 | 11 | revisão | melhoria | P | `dfe/evento.go:122` O `switch` liga Duplicate e um `if` logo abaixo retorna; `TrimSpace` é calculado 2x. | feito |
 | 12 | revisão | melhoria | P | `dfe/c14n.go:176` O helper `has` tem 1 uso e o mapa é consultado 2x. | feito |
 | 13 | revisão | melhoria | P | `cmd/folio/admin.go:221` `accountAndClient` tem 1 chamador; chamar `parseID` direto. | feito |
-| 14 | revisão | melhoria | P | `cmd/folio/admin_test.go:82` `writeFile` tem 1 uso e só repassa `os.WriteFile`. | aberto |
+| 14 | revisão | melhoria | P | `cmd/folio/admin_test.go:82` `writeFile` tem 1 uso e só repassa `os.WriteFile`. | feito |
 | 15 | revisão | melhoria | P | `dfe/distdfe.go:111` O `if DhResp != ""` sobra; `time.Parse` já falha com vazio. | aberto |
 | 16 | revisão | melhoria | P | `internal/platform/db/db.go:143` `db.Rollback` não tem chamador; apagar. | aberto |
 | 17 | revisão | melhoria | P | `internal/apiclient/store.go:49` `apiclient.Store.ByID` não tem chamador; apagar. | aberto |

@@ -46,7 +46,7 @@ func TestAdminFlow(t *testing.T) {
 
 	pfx, pass := dfetest.NewCert(t, "11222333000181", time.Now().AddDate(1, 0, 0))
 	path := t.TempDir() + "/cert.pfx"
-	if err := writeFile(path, pfx); err != nil {
+	if err := os.WriteFile(path, pfx, 0o600); err != nil {
 		t.Fatalf("writing pfx: %v", err)
 	}
 	t.Setenv("FOLIO_PFX_PASSWORD", pass)
@@ -77,8 +77,4 @@ func TestAdminErrors(t *testing.T) {
 			t.Errorf("admin %v succeeded", args)
 		}
 	}
-}
-
-func writeFile(path string, data []byte) error {
-	return os.WriteFile(path, data, 0o600)
 }
