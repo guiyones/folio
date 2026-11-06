@@ -140,7 +140,7 @@ func (a *api) do(method, path, apiKey string, body io.Reader, contentType string
 	if err != nil {
 		a.t.Fatalf("do: %v", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // the body is read in full below; a close error in a test adds nothing
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		a.t.Fatalf("reading body: %v", err)

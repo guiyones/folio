@@ -1,6 +1,6 @@
 # Revisão guiada: docs/pendencias.md
 hash: 5e41b45225491571a9b3582fe999c7b7d0d6756d
-atualizado: 2026-11-05 22:45
+atualizado: 2026-11-05 22:46
 
 1. [feito] Se a API não sobe (porta ocupada), o processo fica vivo sem API e com 
 2. [feito] Erro de `connect` volta sem o id da conta, e o log não diz qual conta 
@@ -41,4 +41,4 @@ atualizado: 2026-11-05 22:45
 37. [depois] O layout não segue app/business/foundation. Não migrar agora; o primei
 38. [feito] Sobra do #5: RequestScan ainda repete no handler a condição do Claim
 39. [feito] Upload acima de 2 MB responde 401 em vez de 413
-40. [depois] httpapi_test.go:143 Body.Close sem comentário
+40. [feito] httpapi_test.go:143 Body.Close sem comentário
