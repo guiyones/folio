@@ -140,7 +140,7 @@ func (s *Store) SetPaused(ctx context.Context, id uuid.UUID, paused bool) error 
 	if err != nil {
 		return fmt.Errorf("setting paused: %w", mapErr(err))
 	}
-	return mustAffect(res, ErrNotFound)
+	return db.MustAffect(res, ErrNotFound)
 }
 
 // PutCertificate stores c as the certificate of the account, replacing the
@@ -203,7 +203,7 @@ func (s *Store) DeleteCertificate(ctx context.Context, accountID uuid.UUID) erro
 	if err != nil {
 		return fmt.Errorf("deleting certificate: %w", mapErr(err))
 	}
-	return mustAffect(res, ErrNoCertificate)
+	return db.MustAffect(res, ErrNoCertificate)
 }
 
 // =============================================================================
@@ -322,15 +322,4 @@ func mapErr(err error) error {
 		return ErrNotFound
 	}
 	return err
-}
-
-func mustAffect(res sql.Result, none error) error {
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if n == 0 {
-		return none
-	}
-	return nil
 }

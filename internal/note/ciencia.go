@@ -83,14 +83,7 @@ func (s *Store) RequestCiencia(ctx context.Context, tx account.LockedTx, noteID 
 	if err != nil {
 		return fmt.Errorf("requesting ciência: %w", db.Map(err))
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if n == 0 {
-		return ErrConflict
-	}
-	return nil
+	return db.MustAffect(res, ErrConflict)
 }
 
 func (s *Store) exec(ctx context.Context, tx account.LockedTx, q string, args ...any) error {
@@ -98,12 +91,5 @@ func (s *Store) exec(ctx context.Context, tx account.LockedTx, q string, args ..
 	if err != nil {
 		return fmt.Errorf("updating note: %w", db.Map(err))
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return db.MustAffect(res, ErrNotFound)
 }

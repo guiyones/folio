@@ -139,3 +139,15 @@ func WithTx(ctx context.Context, db *sqlx.DB, fn func(tx *sqlx.Tx) error) error 
 	}
 	return nil
 }
+
+// MustAffect returns none when res changed no row.
+func MustAffect(res sql.Result, none error) error {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if n == 0 {
+		return none
+	}
+	return nil
+}

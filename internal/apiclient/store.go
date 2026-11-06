@@ -95,14 +95,7 @@ func (s *Store) RevokeKey(ctx context.Context, prefix string, now time.Time) err
 	if err != nil {
 		return fmt.Errorf("revoking key: %w", mapErr(err))
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if n == 0 {
-		return fmt.Errorf("chave %q não encontrada ou já revogada: %w", prefix, ErrNotFound)
-	}
-	return nil
+	return db.MustAffect(res, fmt.Errorf("chave %q não encontrada ou já revogada: %w", prefix, ErrNotFound))
 }
 
 // Prefix returns the part of a key that is stored in clear.

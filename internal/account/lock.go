@@ -108,5 +108,5 @@ func (s *Store) FinishScan(ctx context.Context, tx LockedTx, r ScanResult, now t
 	if err != nil {
 		return fmt.Errorf("finishing scan: %w", db.Map(err))
 	}
-	return mustAffect(res, ErrNotFound)
+	return db.MustAffect(res, ErrNotFound)
 }
