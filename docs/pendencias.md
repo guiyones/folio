@@ -14,7 +14,7 @@
 | 8 | revisão | melhoria | P | `dfe/sign.go:207` `decodeChild` com `local==""` muda de modo; a mensagem sai sem o nome. Separar em `decodeText`. | feito |
 | 9 | revisão | melhoria | P | `dfe/ber.go:429` `utf16.Encode` sobra depois de recusar `r > 0xffff`; tirar o import. | feito |
 | 10 | revisão | melhoria | P | `dfe/ber.go:124` O `for` com `break` esconde a regra de tentar a senha vazia como nil; deixar as duas tentativas explícitas. | feito |
-| 11 | revisão | melhoria | P | `dfe/evento.go:122` O `switch` liga Duplicate e um `if` logo abaixo retorna; `TrimSpace` é calculado 2x. | aberto |
+| 11 | revisão | melhoria | P | `dfe/evento.go:122` O `switch` liga Duplicate e um `if` logo abaixo retorna; `TrimSpace` é calculado 2x. | feito |
 | 12 | revisão | melhoria | P | `dfe/c14n.go:176` O helper `has` tem 1 uso e o mapa é consultado 2x. | aberto |
 | 13 | revisão | melhoria | P | `cmd/folio/admin.go:221` `accountAndClient` tem 1 chamador; chamar `parseID` direto. | aberto |
 | 14 | revisão | melhoria | P | `cmd/folio/admin_test.go:82` `writeFile` tem 1 uso e só repassa `os.WriteFile`. | aberto |

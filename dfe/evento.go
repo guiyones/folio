@@ -110,8 +110,8 @@ func parseEventReturn(data, signed []byte) (EventResult, error) {
 		return EventResult{}, fmt.Errorf("a resposta não tem retEnvEvento")
 	}
 
-	if strings.TrimSpace(ret.CStat) != CStatLoteProcessado {
-		return EventResult{}, &RejectedError{CStat: strings.TrimSpace(ret.CStat), Motivo: strings.TrimSpace(ret.XMotivo)}
+	if cStat := strings.TrimSpace(ret.CStat); cStat != CStatLoteProcessado {
+		return EventResult{}, &RejectedError{CStat: cStat, Motivo: strings.TrimSpace(ret.XMotivo)}
 	}
 
 	r := EventResult{
@@ -123,12 +123,9 @@ func parseEventReturn(data, signed []byte) (EventResult, error) {
 	case CStatEventoOK:
 	case CStatEventoDup:
 		r.Duplicate = true
+		return r, nil
 	default:
 		return EventResult{}, &RejectedError{CStat: r.CStat, Motivo: r.Motivo}
-	}
-
-	if r.Duplicate {
-		return r, nil
 	}
 
 	retEvento, err := rawElement(data, "retEvento")
