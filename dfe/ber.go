@@ -121,19 +121,33 @@ func pfxToDER(data []byte, password string) ([]byte, error) {
 // Like pkcs12, it also tries an empty password as no bytes at all, which
 // some tools write instead of the two zero bytes.
 func checkPFXMAC(mac pfxMacData, bmp, message []byte) ([]byte, error) {
-	for _, p := range [][]byte{bmp, nil} {
-		digest, err := pfxMAC(mac, p, message)
+	ok, err := pfxMACMatches(mac, bmp, message)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return bmp, nil
+	}
+
+	// bmp is only the two terminating zero bytes when the password is empty.
+	if len(bmp) == 2 {
+		ok, err := pfxMACMatches(mac, nil, message)
 		if err != nil {
 			return nil, err
 		}
-		if hmac.Equal(digest, mac.Mac.Digest) {
-			return p, nil
-		}
-		if len(bmp) != 2 {
-			break
+		if ok {
+			return nil, nil
 		}
 	}
 	return nil, ErrBadPassword
+}
+
+func pfxMACMatches(mac pfxMacData, password, message []byte) (bool, error) {
+	digest, err := pfxMAC(mac, password, message)
+	if err != nil {
+		return false, err
+	}
+	return hmac.Equal(digest, mac.Mac.Digest), nil
 }
 
 // authSafeToDER rewrites the authenticated safe in DER. The SafeContents
