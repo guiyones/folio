@@ -46,6 +46,10 @@ func admin(ctx context.Context, args []string, out io.Writer) error {
 		return errors.New("falta o comando")
 	}
 	cmd, args := args[0], args[1:]
+	if cmd == "-h" || cmd == "--help" || cmd == "help" {
+		fmt.Fprint(out, adminUsage)
+		return nil
+	}
 
 	fs := flag.NewFlagSet("admin "+cmd, flag.ContinueOnError)
 	fs.SetOutput(out)
@@ -61,6 +65,9 @@ func admin(ctx context.Context, args []string, out io.Writer) error {
 		pfxPath   = fs.String("pfx", "", "arquivo .pfx")
 	)
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil // Parse already printed the options
+		}
 		return err
 	}
 

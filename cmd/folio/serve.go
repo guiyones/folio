@@ -26,6 +26,9 @@ func serve(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	noScan := fs.Bool("no-scan", false, "sobe só a API, sem a varredura")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil // Parse already printed the options
+		}
 		return err
 	}
 

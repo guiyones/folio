@@ -78,3 +78,17 @@ func TestAdminErrors(t *testing.T) {
 		}
 	}
 }
+
+// -h prints the options and exits 0, like any help.
+func TestHelpIsNotAnError(t *testing.T) {
+	for name, call := range map[string]func() error{
+		"admin":         func() error { return admin(context.Background(), []string{"-h"}, &bytes.Buffer{}) },
+		"admin migrate": func() error { return admin(context.Background(), []string{"migrate", "-h"}, &bytes.Buffer{}) },
+		"consulta":      func() error { return consulta(context.Background(), []string{"-h"}, &bytes.Buffer{}) },
+		"serve":         func() error { return serve(context.Background(), []string{"-h"}) },
+	} {
+		if err := call(); err != nil {
+			t.Errorf("%s -h = %v, want nil", name, err)
+		}
+	}
+}

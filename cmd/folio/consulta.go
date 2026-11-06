@@ -21,6 +21,7 @@ import (
 // tool only if that tool is paused.
 func consulta(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("consulta", flag.ContinueOnError)
+	fs.SetOutput(out)
 	pfxPath := fs.String("pfx", "", "arquivo .pfx do certificado A1 (obrigatório)")
 	uf := fs.Int("uf", 41, "código IBGE da UF do interessado (41 = PR)")
 	amb := fs.Int("amb", 2, "ambiente: 1 produção, 2 homologação")
@@ -28,6 +29,9 @@ func consulta(ctx context.Context, args []string, out io.Writer) error {
 	nsu := fs.Int64("nsu", 0, "último NSU já recebido")
 	outDir := fs.String("out", "out", "pasta onde gravar os XMLs")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil // Parse already printed the options
+		}
 		return err
 	}
 	if *pfxPath == "" {
