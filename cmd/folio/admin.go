@@ -128,7 +128,11 @@ func admin(ctx context.Context, args []string, out io.Writer) error {
 		fmt.Fprintf(out, "conta %s criada: %s\n", a.Name, a.ID)
 
 	case "account-link":
-		aid, cid, err := accountAndClient(*accountID, *clientID)
+		aid, err := parseID("--account", *accountID)
+		if err != nil {
+			return err
+		}
+		cid, err := parseID("--client", *clientID)
 		if err != nil {
 			return err
 		}
@@ -216,16 +220,4 @@ func parseID(flagName, s string) (uuid.UUID, error) {
 		return uuid.Nil(), fmt.Errorf("%s %q não é um ID válido", flagName, s)
 	}
 	return id, nil
-}
-
-func accountAndClient(accountID, clientID string) (uuid.UUID, uuid.UUID, error) {
-	aid, err := parseID("--account", accountID)
-	if err != nil {
-		return uuid.Nil(), uuid.Nil(), err
-	}
-	cid, err := parseID("--client", clientID)
-	if err != nil {
-		return uuid.Nil(), uuid.Nil(), err
-	}
-	return aid, cid, nil
 }
