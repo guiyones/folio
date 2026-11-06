@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"unicode/utf16"
 )
 
 // Some issuers (Java and BouncyCastle) deliver the PFX in BER: indefinite
@@ -430,9 +429,9 @@ func bmpPassword(password string) ([]byte, error) {
 		if r > 0xffff {
 			return nil, errors.New("a senha tem um caractere que o PFX não aceita")
 		}
-		for _, u := range utf16.Encode([]rune{r}) {
-			out = append(out, byte(u>>8), byte(u))
-		}
+		// Ranging over a string never yields a surrogate, so r below 0x10000
+		// is already its own UTF-16 unit.
+		out = append(out, byte(r>>8), byte(r))
 	}
 	return append(out, 0, 0), nil
 }
