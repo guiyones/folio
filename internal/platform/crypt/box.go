@@ -3,6 +3,7 @@
 package crypt
 
 import (
+	"cmp"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -55,12 +56,7 @@ func FromEnv() (*Box, error) {
 		return nil, errors.New("FOLIO_CERT_KEY não é base64 válido")
 	}
 
-	keyID := os.Getenv("FOLIO_CERT_KEY_ID")
-	if keyID == "" {
-		keyID = "k1"
-	}
-
-	box, err := NewBox(keyID, key)
+	box, err := NewBox(cmp.Or(os.Getenv("FOLIO_CERT_KEY_ID"), "k1"), key)
 	if err != nil {
 		return nil, fmt.Errorf("FOLIO_CERT_KEY: %w", err)
 	}

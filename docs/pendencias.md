@@ -28,7 +28,7 @@
 | 22 | revisão | melhoria | P | `internal/note/store.go:263` Struct anônima igual a `Event` copiada campo a campo; usar `Event(r)`. | feito |
 | 23 | revisão | melhoria | P | `internal/scan/scan.go:304` `id := docID` só para tirar o endereço; usar `&docID`. | feito |
 | 24 | revisão | melhoria | P | `internal/apiclient/store.go:74` `plain[:prefixLen]` repete `Prefix()`. | feito |
-| 25 | revisão | melhoria | P | `internal/platform/crypt/box.go:58` Valor padrão com `if`; usar `cmp.Or`. | aberto |
+| 25 | revisão | melhoria | P | `internal/platform/crypt/box.go:58` Valor padrão com `if`; usar `cmp.Or`. | feito |
 | 26 | revisão | melhoria | P | `internal/note/note.go:7` O comentário cita `LockDue`, que não existe (o certo é `Claim`/`Lock`). | feito |
 | 27 | revisão | melhoria | P | `cmd/folio/consulta.go:78` Erro de `KindOf` descartado sem comentário; o schema real some. | aberto |
 | 28 | revisão | melhoria | P | `cmd/folio/admin.go:63` (e consulta, serve) `-h` sai como "erro: flag: help requested", com exit 1. | aberto |
