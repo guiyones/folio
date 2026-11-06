@@ -108,11 +108,10 @@ func parseDist(data []byte) (DistResult, error) {
 	if r.MaxNSU, err = parseNSU(ret.MaxNSU); err != nil {
 		return DistResult{}, fmt.Errorf("maxNSU: %w", err)
 	}
-	if ret.DhResp != "" {
-		// dhResp is informative; a bad one must not throw away the documents.
-		if t, err := time.Parse(time.RFC3339, strings.TrimSpace(ret.DhResp)); err == nil {
-			r.RespondedAt = t
-		}
+	// dhResp is informative; a missing or bad one must not throw away the
+	// documents.
+	if t, err := time.Parse(time.RFC3339, strings.TrimSpace(ret.DhResp)); err == nil {
+		r.RespondedAt = t
 	}
 
 	for _, z := range ret.Docs {
