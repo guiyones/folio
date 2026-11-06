@@ -36,7 +36,7 @@
 | 30 | revisão | melhoria | P | `zarf/compose/docker_compose.yaml:7` Postgres de dev escuta em todas as interfaces com postgres/postgres; publicar só em 127.0.0.1. | feito |
 | 31 | revisão | melhoria | P | `internal/scan/scan.go:351` `errors.Join` em vez de `%w`; a mensagem sai em 2 linhas. | feito |
 | 32 | revisão | melhoria | P | `internal/note/store.go:249` Erro de `KindOf` volta cru, sem operação nem noteID. | feito |
-| 33 | revisão | melhoria | P | `internal/httpapi/accounts.go:234` Senha com mais de 1024 bytes é truncada e vira 422 enganoso; `MaxBytesError` na parte da senha cai em 400. | aberto |
+| 33 | revisão | melhoria | P | `internal/httpapi/accounts.go:234` Senha com mais de 1024 bytes é truncada e vira 422 enganoso; `MaxBytesError` na parte da senha cai em 400. | feito |
 | 34 | revisão | melhoria | P | `internal/platform/db/dbtest/dbtest.go:56` `t.Fatalf` antes do `t.Cleanup` deixa a conexão admin aberta e o banco sem DROP. | aberto |
 | 35 | revisão | melhoria | P | Testes de account/note/scan/httpapi sem `t.Parallel()`, embora cada um crie o próprio banco. | aberto |
 | 36 | revisão | melhoria | P | `internal/httpapi/httpapi.go:31` O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover para `account`. | aberto |

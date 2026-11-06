@@ -308,6 +308,23 @@ func TestCertificateTooBig(t *testing.T) {
 	}
 }
 
+// A password over the limit is refused as such, not cut and then refused
+// as the wrong password.
+func TestCertificatePasswordTooLong(t *testing.T) {
+	a := setup(t)
+	tn := a.tenant("cadim", cnpj)
+	pfx, _ := dfetest.NewCert(t, cnpj, t0.AddDate(1, 0, 0))
+
+	body, ct := certForm(t, pfx, strings.Repeat("s", 1025))
+	r := a.do(http.MethodPut, "/v1/accounts/"+tn.account.ID.String()+"/certificate", tn.key, body, ct)
+	if r.status != http.StatusBadRequest {
+		t.Fatalf("status = %d %s", r.status, r.body)
+	}
+	if msg := r.errorMessage(t); !strings.Contains(msg, "senha longa demais") {
+		t.Errorf("error = %q, want senha longa demais", msg)
+	}
+}
+
 func TestCertificateUploadMissingField(t *testing.T) {
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)

@@ -17,6 +17,10 @@ import (
 // maxPFX bounds an uploaded certificate; a real A1 is a few KB.
 const maxPFX = 1 << 20
 
+// maxPassword bounds the certificate password; a longer one is refused, not
+// cut, so it never turns into a wrong password.
+const maxPassword = 1024
+
 // errTooBig says the upload passed maxPFX or the request body limit.
 var errTooBig = errors.New("o certificado passa de 1 MB")
 
@@ -208,7 +212,7 @@ func certificateView(sc account.StoredCert, now time.Time) gen.Certificate {
 }
 
 // readCertificateForm reads the pfx and password parts of the upload. A
-// file over the limit gives errTooBig.
+// file or body over the limit gives errTooBig.
 func readCertificateForm(req gen.UploadCertificateRequestObject) (pfx []byte, password string, err error) {
 	if req.Body == nil {
 		return nil, "", errors.New("envie um multipart/form-data com pfx e password")
@@ -231,18 +235,20 @@ func readCertificateForm(req gen.UploadCertificateRequestObject) (pfx []byte, pa
 		switch part.FormName() {
 		case "pfx":
 			pfx, err = io.ReadAll(io.LimitReader(part, maxPFX+1))
-			if errors.As(err, &maxErr) || len(pfx) > maxPFX {
-				return nil, "", errTooBig
-			}
 			gotPFX = true
 		case "password":
 			var b []byte
-			b, err = io.ReadAll(io.LimitReader(part, 1024))
+			b, err = io.ReadAll(io.LimitReader(part, maxPassword+1))
 			password = string(b)
 			gotPass = true
 		}
-		if err != nil {
+		switch {
+		case errors.As(err, &maxErr), len(pfx) > maxPFX:
+			return nil, "", errTooBig
+		case err != nil:
 			return nil, "", fmt.Errorf("lendo o formulário: %w", err)
+		case len(password) > maxPassword:
+			return nil, "", fmt.Errorf("senha longa demais: o limite é de %d bytes", maxPassword)
 		}
 	}
 
