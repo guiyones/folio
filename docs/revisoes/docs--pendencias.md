@@ -37,8 +37,8 @@ atualizado: 2026-11-05 22:34
 33. [feito] Senha com mais de 1024 bytes é truncada e vira 422 enganoso; `MaxBytes
 34. [feito] `t.Fatalf` antes do `t.Cleanup` deixa a conexão admin aberta e o banco
 35. [feito]  Testes de account/note/scan/httpapi sem `t.Parallel()`, embora cada u
-36. [pendente] O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover
-37. [pendente] O layout não segue app/business/foundation. Não migrar agora; o primei
-38. [pendente] Sobra do #5: RequestScan ainda repete no handler a condição do Claim
+36. [depois] O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover
+37. [depois] O layout não segue app/business/foundation. Não migrar agora; o primei
+38. [depois] Sobra do #5: RequestScan ainda repete no handler a condição do Claim
 39. [feito] Upload acima de 2 MB responde 401 em vez de 413
-40. [pendente] httpapi_test.go:143 Body.Close sem comentário
+40. [depois] httpapi_test.go:143 Body.Close sem comentário
