@@ -11,7 +11,7 @@
 | 5 | revisão | melhoria | G | `internal/httpapi/notes.go:94` A regra de quem pode pedir a Ciência, a transação e o lock ficam no handler; `RequestScan` (accounts.go:105) repete a condição de `Claim`. Criar uma operação de negócio com sentinelas, e o handler só traduz o erro. | feito |
 | 6 | revisão | melhoria | M | `internal/scan/scan.go:226` A regra "escrita em notas sob o lock da conta" é garantida só por quem chama (4 lugares). Centralizar num `WithLock` ou numa transação travada. | feito |
 | 7 | revisão | melhoria | P | `dfe/sign.go:100` Linha reescreve `findDSig(root, "Signature")` à mão; o find por Id aparece duplicado (42-45 e 132-135). | feito |
-| 8 | revisão | melhoria | P | `dfe/sign.go:207` `decodeChild` com `local==""` muda de modo; a mensagem sai sem o nome. Separar em `decodeText`. | aberto |
+| 8 | revisão | melhoria | P | `dfe/sign.go:207` `decodeChild` com `local==""` muda de modo; a mensagem sai sem o nome. Separar em `decodeText`. | feito |
 | 9 | revisão | melhoria | P | `dfe/ber.go:429` `utf16.Encode` sobra depois de recusar `r > 0xffff`; tirar o import. | aberto |
 | 10 | revisão | melhoria | P | `dfe/ber.go:124` O `for` com `break` esconde a regra de tentar a senha vazia como nil; deixar as duas tentativas explícitas. | aberto |
 | 11 | revisão | melhoria | P | `dfe/evento.go:122` O `switch` liga Duplicate e um `if` logo abaixo retorna; `TrimSpace` é calculado 2x. | aberto |

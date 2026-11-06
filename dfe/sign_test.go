@@ -133,3 +133,22 @@ func TestSignUnknownID(t *testing.T) {
 		t.Error("signed an element that does not exist")
 	}
 }
+
+func TestVerifyMissingCertificate(t *testing.T) {
+	signed, err := dfe.SignEnveloped([]byte(evento), eventoID, loadCert(t))
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	start := bytes.Index(signed, []byte("<X509Certificate>"))
+	end := bytes.Index(signed, []byte("</X509Certificate>")) + len("</X509Certificate>")
+	stripped := append(append([]byte{}, signed[:start]...), signed[end:]...)
+
+	err = dfe.VerifyEnveloped(stripped)
+	if err == nil {
+		t.Fatal("verify accepted a Signature without X509Certificate")
+	}
+	if want := "assinatura sem X509Certificate"; err.Error() != want {
+		t.Errorf("err = %q, want %q", err, want)
+	}
+}

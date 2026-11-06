@@ -143,9 +143,9 @@ func VerifyEnveloped(doc []byte) error {
 		return errors.New("DigestValue não confere: o conteúdo assinado foi alterado")
 	}
 
-	certDER, err := decodeChild(findDSig(sig, "X509Certificate"), "")
+	certDER, err := decodeText(findDSig(sig, "X509Certificate"), "X509Certificate")
 	if err != nil {
-		return fmt.Errorf("X509Certificate: %w", err)
+		return err
 	}
 	leaf, err := x509.ParseCertificate(certDER)
 	if err != nil {
@@ -198,19 +198,20 @@ func checkAlgorithm(parent *element, local, want string) error {
 	return nil
 }
 
-// decodeChild base64-decodes the text of parent's child local, or of parent
-// itself when local is empty.
+// decodeChild base64-decodes the text of parent's child local.
 func decodeChild(parent *element, local string) ([]byte, error) {
-	el := parent
-	if local != "" && parent != nil {
-		el = parent.child(nsDSig, local)
-	}
+	return decodeText(parent.child(nsDSig, local), local)
+}
+
+// decodeText base64-decodes the text of el; name says which element is
+// missing or broken in the error.
+func decodeText(el *element, name string) ([]byte, error) {
 	if el == nil {
-		return nil, fmt.Errorf("assinatura sem %s", local)
+		return nil, fmt.Errorf("assinatura sem %s", name)
 	}
 	b, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(el.text()), ""))
 	if err != nil {
-		return nil, fmt.Errorf("%s em base64 inválido: %w", el.local, err)
+		return nil, fmt.Errorf("%s em base64 inválido: %w", name, err)
 	}
 	return b, nil
 }
