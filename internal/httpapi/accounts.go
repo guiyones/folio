@@ -206,8 +206,8 @@ func certificateView(sc account.StoredCert, now time.Time) gen.Certificate {
 		Cnpj:         sc.CNPJ,
 		NotAfter:     sc.NotAfter,
 		UploadedAt:   sc.UploadedAt,
-		Expired:      !sc.NotAfter.After(now),
-		ExpiringSoon: sc.NotAfter.Sub(now) <= certWarn,
+		Expired:      sc.Expired(now),
+		ExpiringSoon: sc.ExpiringSoon(now),
 	}
 }
 

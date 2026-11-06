@@ -26,9 +26,6 @@ import (
 // maxBody bounds every request; the largest is a certificate upload.
 const maxBody = 2 << 20
 
-// certWarn is how long before expiry a certificate shows expiring_soon.
-const certWarn = 30 * 24 * time.Hour
-
 // Deps is what the API needs.
 type Deps struct {
 	Accounts *account.Store

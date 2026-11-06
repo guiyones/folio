@@ -39,7 +39,7 @@
 | 33 | revisão | melhoria | P | `internal/httpapi/accounts.go:234` Senha com mais de 1024 bytes é truncada e vira 422 enganoso; `MaxBytesError` na parte da senha cai em 400. | feito |
 | 34 | revisão | melhoria | P | `internal/platform/db/dbtest/dbtest.go:56` `t.Fatalf` antes do `t.Cleanup` deixa a conexão admin aberta e o banco sem DROP. | feito |
 | 35 | revisão | melhoria | P | Testes de account/note/scan/httpapi sem `t.Parallel()`, embora cada um crie o próprio banco. | feito |
-| 36 | revisão | melhoria | P | `internal/httpapi/httpapi.go:31` O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover para `account`. | aberto |
+| 36 | revisão | melhoria | P | `internal/httpapi/httpapi.go:31` O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover para `account`. | feito |
 | 37 | revisão | melhoria | G | `internal` O layout não segue app/business/foundation. Não migrar agora; o primeiro passo é o #5. | aberto |
 | 38 | revisão | melhoria | P | `internal/httpapi/accounts.go:105` Sobra do #5: `RequestScan` ainda repete no handler a condição do `Claim` (pausada, certificado, `next_scan_at`). | aberto |
 | 39 | revisão | bug | M | `internal/httpapi` Upload com corpo acima de 2 MB (ex.: pfx grande) responde 401 "security requirements failed: reading failed: http: request body too large", porque o validador OpenAPI lê o corpo antes do handler. Deveria ser 413. | feito |

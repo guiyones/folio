@@ -1,6 +1,6 @@
 # Revisão guiada: docs/pendencias.md
 hash: 5e41b45225491571a9b3582fe999c7b7d0d6756d
-atualizado: 2026-11-05 22:34
+atualizado: 2026-11-05 22:45
 
 1. [feito] Se a API não sobe (porta ocupada), o processo fica vivo sem API e com 
 2. [feito] Erro de `connect` volta sem o id da conta, e o log não diz qual conta 
@@ -37,7 +37,7 @@ atualizado: 2026-11-05 22:34
 33. [feito] Senha com mais de 1024 bytes é truncada e vira 422 enganoso; `MaxBytes
 34. [feito] `t.Fatalf` antes do `t.Cleanup` deixa a conexão admin aberta e o banco
 35. [feito]  Testes de account/note/scan/httpapi sem `t.Parallel()`, embora cada u
-36. [depois] O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover
+36. [feito] O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover
 37. [depois] O layout não segue app/business/foundation. Não migrar agora; o primei
 38. [depois] Sobra do #5: RequestScan ainda repete no handler a condição do Claim
 39. [feito] Upload acima de 2 MB responde 401 em vez de 413

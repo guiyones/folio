@@ -34,9 +34,6 @@ const (
 	// is picked again on the next tick.
 	MaxPages = 20
 
-	// CertWarn is how long before expiry the certificate starts warning.
-	CertWarn = 30 * 24 * time.Hour
-
 	// Tick is how often Loop looks for due accounts.
 	Tick = time.Minute
 
@@ -132,11 +129,11 @@ func (s *Scanner) connect(ctx context.Context, a account.Account, now time.Time,
 	if err != nil {
 		return nil, "", err
 	}
-	if !stored.NotAfter.After(now) {
+	if stored.Expired(now) {
 		log.Warn("certificate expired", "not_after", stored.NotAfter)
 		return nil, "certificado vencido", nil
 	}
-	if stored.NotAfter.Sub(now) <= CertWarn {
+	if stored.ExpiringSoon(now) {
 		log.Warn("certificate expires soon", "not_after", stored.NotAfter)
 	}
 

@@ -62,3 +62,18 @@ type StoredCert struct {
 	PFX        []byte
 	Password   []byte
 }
+
+// CertWarn is how long before expiry a certificate counts as expiring soon:
+// the scan warns in the log and the API shows expiring_soon.
+const CertWarn = 30 * 24 * time.Hour
+
+// Expired reports whether the certificate is no longer valid at now.
+func (sc StoredCert) Expired(now time.Time) bool {
+	return !sc.NotAfter.After(now)
+}
+
+// ExpiringSoon reports whether the certificate expires within CertWarn of
+// now, or already has.
+func (sc StoredCert) ExpiringSoon(now time.Time) bool {
+	return sc.NotAfter.Sub(now) <= CertWarn
+}
