@@ -46,17 +46,6 @@ func (s *Store) Create(ctx context.Context, name string, now time.Time) (Client,
 	return c, nil
 }
 
-// ByID returns the client with id.
-func (s *Store) ByID(ctx context.Context, id uuid.UUID) (Client, error) {
-	const q = `SELECT id, name, created_at FROM clients WHERE id = $1`
-
-	var row dbClient
-	if err := s.db.GetContext(ctx, &row, q, id.String()); err != nil {
-		return Client{}, fmt.Errorf("querying client: %w", mapErr(err))
-	}
-	return row.toClient()
-}
-
 // CreateKey makes a new API key for clientID and returns it. The key is not
 // stored and cannot be shown again.
 func (s *Store) CreateKey(ctx context.Context, clientID uuid.UUID, now time.Time) (string, error) {

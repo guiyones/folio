@@ -20,7 +20,7 @@
 | 14 | revisão | melhoria | P | `cmd/folio/admin_test.go:82` `writeFile` tem 1 uso e só repassa `os.WriteFile`. | feito |
 | 15 | revisão | melhoria | P | `dfe/distdfe.go:111` O `if DhResp != ""` sobra; `time.Parse` já falha com vazio. | feito |
 | 16 | revisão | melhoria | P | `internal/platform/db/db.go:143` `db.Rollback` não tem chamador; apagar. | feito |
-| 17 | revisão | melhoria | P | `internal/apiclient/store.go:49` `apiclient.Store.ByID` não tem chamador; apagar. | aberto |
+| 17 | revisão | melhoria | P | `internal/apiclient/store.go:49` `apiclient.Store.ByID` não tem chamador; apagar. | feito |
 | 18 | revisão | melhoria | M | `internal/account/store.go:327` O padrão "RowsAffected, n==0 → erro" aparece 4x (account, note 2x, apiclient); criar `db.MustAffect(res, none)`. | aberto |
 | 19 | revisão | melhoria | P | `internal/note/store.go:349` `parseID(s, isNew)` só repassa `isNew`; virar `parseDocID(s)`. | aberto |
 | 20 | revisão | melhoria | P | `internal/account/lock.go:44` A variável `errConv` é um desvio só para ligar `found`. | aberto |
