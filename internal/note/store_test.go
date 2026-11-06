@@ -115,6 +115,7 @@ func sample() dfe.Note {
 }
 
 func TestSummaryThenFull(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 
 	f.summary(t, sample(), now.Add(-24*time.Hour), true)
@@ -141,6 +142,7 @@ func TestSummaryThenFull(t *testing.T) {
 }
 
 func TestFullThenSummary(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 
 	f.full(t, sample())
@@ -155,6 +157,7 @@ func TestFullThenSummary(t *testing.T) {
 }
 
 func TestCancelSticks(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 
 	f.summary(t, sample(), now.Add(-24*time.Hour), true)
@@ -170,6 +173,7 @@ func TestCancelSticks(t *testing.T) {
 }
 
 func TestEventBeforeSummary(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 
 	f.event(t, dfe.EventCancel)
@@ -182,6 +186,7 @@ func TestEventBeforeSummary(t *testing.T) {
 }
 
 func TestEventDuplicate(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 
 	f.summary(t, sample(), now, true)
@@ -195,6 +200,7 @@ func TestEventDuplicate(t *testing.T) {
 }
 
 func TestSaveDocIdempotent(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	ctx := context.Background()
 	d := dfe.Doc{NSU: 7, Schema: "resNFe_v1.01.xsd", XML: []byte("<x/>")}
@@ -220,6 +226,7 @@ func TestSaveDocIdempotent(t *testing.T) {
 }
 
 func TestCienciaCutoff(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		cutoff time.Time
@@ -243,6 +250,7 @@ func TestCienciaCutoff(t *testing.T) {
 }
 
 func TestCancelledSummaryNeedsNoCiencia(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	n := sample()
 	n.Situation = dfe.Cancelled
@@ -254,6 +262,7 @@ func TestCancelledSummaryNeedsNoCiencia(t *testing.T) {
 }
 
 func TestNotesAfter(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	ctx := context.Background()
 
@@ -287,6 +296,7 @@ func TestNotesAfter(t *testing.T) {
 }
 
 func TestForClient(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	ctx := context.Background()
 	f.summary(t, sample(), now, false)
@@ -301,6 +311,7 @@ func TestForClient(t *testing.T) {
 }
 
 func TestXMLSummaryOnly(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	f.summary(t, sample(), now, false)
 
@@ -318,6 +329,7 @@ func TestXMLSummaryOnly(t *testing.T) {
 }
 
 func TestDeniedSummary(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	n := sample()
 	n.Situation = dfe.Denied
@@ -334,6 +346,7 @@ func TestDeniedSummary(t *testing.T) {
 }
 
 func TestDeniedFull(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	n := sample()
 	n.Situation = dfe.Denied
@@ -345,6 +358,7 @@ func TestDeniedFull(t *testing.T) {
 }
 
 func TestSummaryCancelledLaterDropsCiencia(t *testing.T) {
+	t.Parallel()
 	f := setup(t)
 	f.summary(t, sample(), issued.Add(-time.Hour), true)
 	if got := f.only(t); got.Ciencia != note.CienciaPending {

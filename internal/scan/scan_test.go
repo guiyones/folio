@@ -183,6 +183,7 @@ func docs(cStat string, ult, max int64, zd ...dfetest.ZipDoc) answer {
 }
 
 func TestScanPagesUntilMax(t *testing.T) {
+	t.Parallel()
 	e := setup(t,
 		docs("138", 2, 4, summary(1), summary(2)),
 		docs("138", 4, 4, summary(3), summary(4)),
@@ -204,6 +205,7 @@ func TestScanPagesUntilMax(t *testing.T) {
 }
 
 func TestScan137Waits(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 9, 9))
 
 	e.run(t)
@@ -218,6 +220,7 @@ func TestScan137Waits(t *testing.T) {
 }
 
 func TestScan656Waits(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("656", 0, 0))
 
 	e.run(t)
@@ -228,6 +231,7 @@ func TestScan656Waits(t *testing.T) {
 }
 
 func TestScanRejectedKeepsNSU(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("593", 50, 50))
 
 	e.run(t)
@@ -238,6 +242,7 @@ func TestScanRejectedKeepsNSU(t *testing.T) {
 }
 
 func TestScanErrorKeepsEarlierPages(t *testing.T) {
+	t.Parallel()
 	e := setup(t,
 		docs("138", 1, 5, summary(1)),
 		answer{err: errors.New("conexão recusada")},
@@ -254,6 +259,7 @@ func TestScanErrorKeepsEarlierPages(t *testing.T) {
 }
 
 func TestScanErrorOnFirstPage(t *testing.T) {
+	t.Parallel()
 	e := setup(t, answer{err: errors.New("timeout")})
 
 	e.run(t)
@@ -264,6 +270,7 @@ func TestScanErrorOnFirstPage(t *testing.T) {
 }
 
 func TestScanNSUNeverGoesBack(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 3, 3))
 	if _, err := e.db.Exec(`UPDATE accounts SET ult_nsu = 10`); err != nil {
 		t.Fatalf("set nsu: %v", err)
@@ -276,6 +283,7 @@ func TestScanNSUNeverGoesBack(t *testing.T) {
 }
 
 func TestScanMaxPages(t *testing.T) {
+	t.Parallel()
 	script := make([]answer, scan.MaxPages)
 	for i := range script {
 		script[i] = docs("138", int64(i+1), 1000, summary(i+1))
@@ -290,6 +298,7 @@ func TestScanMaxPages(t *testing.T) {
 }
 
 func TestScanExpiredCert(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	e.now = t0.AddDate(2, 0, 0)
 
@@ -303,6 +312,7 @@ func TestScanExpiredCert(t *testing.T) {
 // TestScanConnectErrorNamesTheAccount shows that a failure reading the
 // certificate says which account it was, like the other steps do.
 func TestScanConnectErrorNamesTheAccount(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	if _, err := e.db.Exec(`ALTER TABLE certificates RENAME COLUMN holder TO holder_gone`); err != nil {
 		t.Fatalf("alter: %v", err)
@@ -318,6 +328,7 @@ func TestScanConnectErrorNamesTheAccount(t *testing.T) {
 // open (the key was rotated) is recorded on the account with a fixed message,
 // not the cipher error, and SEFAZ is not called.
 func TestScanCertificateSealedWithOtherKey(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	other, err := crypt.NewBox("k2", bytes.Repeat([]byte{4}, 32))
 	if err != nil {
@@ -335,6 +346,7 @@ func TestScanCertificateSealedWithOtherKey(t *testing.T) {
 // TestScanDialError shows that a client that cannot be built is recorded
 // with a fixed message, not the TLS error.
 func TestScanDialError(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	e.scanner.Dial = func(*dfe.Certificate, dfe.Env) (scan.SEFAZ, error) {
 		return nil, errors.New("tls: bad certificate from https://nfe.sefaz.example")
@@ -348,6 +360,7 @@ func TestScanDialError(t *testing.T) {
 }
 
 func TestScanSkipsPausedAndNotDue(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	ctx := context.Background()
 
@@ -368,6 +381,7 @@ func TestScanSkipsPausedAndNotDue(t *testing.T) {
 }
 
 func TestScanWithoutCertificate(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	if err := e.accounts.DeleteCertificate(context.Background(), e.account.ID); err != nil {
 		t.Fatalf("delete certificate: %v", err)
@@ -381,6 +395,7 @@ func TestScanWithoutCertificate(t *testing.T) {
 // before the call, so a second process (or the same one after a crash)
 // cannot query the CNPJ again, and that no lock is held during the call.
 func TestScanReservesBeforeCallingSEFAZ(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	e.sefaz.block = make(chan struct{})
 	e.sefaz.started = make(chan struct{}, 1)
@@ -418,6 +433,7 @@ func TestScanReservesBeforeCallingSEFAZ(t *testing.T) {
 }
 
 func TestScanSendsCiencia(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 1, 1, summary(1)))
 
 	e.run(t)
@@ -435,6 +451,7 @@ func TestScanSendsCiencia(t *testing.T) {
 }
 
 func TestScanCienciaDuplicateIsSuccess(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 1, 1, summary(1)))
 	e.sefaz.duplicate = true
 
@@ -445,6 +462,7 @@ func TestScanCienciaDuplicateIsSuccess(t *testing.T) {
 }
 
 func TestScanCienciaRetries(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 1, 1, summary(1)), docs("137", 1, 1))
 	e.sefaz.cienciaErr = errors.New("SEFAZ fora do ar")
 
@@ -475,6 +493,7 @@ func TestScanCienciaRetries(t *testing.T) {
 }
 
 func TestScanNoCienciaBeforeCutoff(t *testing.T) {
+	t.Parallel()
 	old := summary(1)
 	old.XML = `<resNFe xmlns="http://www.portalfiscal.inf.br/nfe"><chNFe>` + key(1) + `</chNFe><CNPJ>99888777000166</CNPJ>` +
 		`<xNome>X</xNome><dhEmi>2026-09-01T10:00:00-03:00</dhEmi><vNF>1</vNF><cSitNFe>1</cSitNFe></resNFe>`
@@ -490,6 +509,7 @@ func TestScanNoCienciaBeforeCutoff(t *testing.T) {
 }
 
 func TestScanKeepsUnknownDocuments(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 2, 2,
 		dfetest.ZipDoc{NSU: 1, Schema: "resCTe_v1.00.xsd", XML: "<resCTe/>"},
 		dfetest.ZipDoc{NSU: 2, Schema: "resNFe_v1.01.xsd", XML: "<resNFe>quebrado</resNFe>"},
@@ -505,6 +525,7 @@ func TestScanKeepsUnknownDocuments(t *testing.T) {
 }
 
 func TestScanLogsEachAnswer(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 1, 1, summary(1)), docs("137", 1, 1))
 	e.sefaz.cienciaErr = errors.New("x")
 	var out bytes.Buffer
@@ -525,6 +546,7 @@ func TestScanLogsEachAnswer(t *testing.T) {
 }
 
 func TestScanKeepsEventsOnOwnNotesOutOfNotes(t *testing.T) {
+	t.Parallel()
 	// The account's customer confirmed a note the account issued: SEFAZ
 	// sends the event to the issuer, but it is not a note received.
 	own := "41261011222333000181550010000022411100003944"
@@ -541,6 +563,7 @@ func TestScanKeepsEventsOnOwnNotesOutOfNotes(t *testing.T) {
 }
 
 func TestScanRepeatedNSUAppliesOnce(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 1, 1, summary(1)), docs("138", 1, 1, summary(1)))
 	e.sefaz.cienciaErr = errors.New("x")
 
@@ -557,6 +580,7 @@ func TestScanRepeatedNSUAppliesOnce(t *testing.T) {
 }
 
 func TestScanStopsWhenNSUDoesNotMove(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 0, 50))
 
 	e.run(t)
@@ -569,6 +593,7 @@ func TestScanStopsWhenNSUDoesNotMove(t *testing.T) {
 // TestScanWaitCountsFromTheAnswer: a 137 that arrives late in a long run
 // still waits a full hour from the answer, not from the start of the run.
 func TestScanWaitCountsFromTheAnswer(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("138", 1, 2, summary(1)), docs("137", 2, 2))
 	calls := 0
 	e.scanner.Now = func() time.Time {
@@ -584,6 +609,7 @@ func TestScanWaitCountsFromTheAnswer(t *testing.T) {
 }
 
 func TestScanErrorStopsTheLoopUntilTheTick(t *testing.T) {
+	t.Parallel()
 	e := setup(t, docs("137", 0, 0))
 	if _, err := e.db.Exec(`DROP TABLE note_events, notes, dfe_docs`); err != nil {
 		t.Fatalf("drop: %v", err)

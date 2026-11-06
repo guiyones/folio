@@ -176,6 +176,7 @@ func certForm(t *testing.T, pfx []byte, password string) (io.Reader, string) {
 // --- auth and routing --------------------------------------------------------
 
 func TestAuthMissing(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	if r := a.get("/v1/accounts", ""); r.status != http.StatusUnauthorized {
 		t.Errorf("status = %d", r.status)
@@ -186,6 +187,7 @@ func TestAuthMissing(t *testing.T) {
 }
 
 func TestAuthRevoked(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	if err := a.clients.RevokeKey(context.Background(), apiclient.Prefix(tn.key), t0); err != nil {
@@ -197,6 +199,7 @@ func TestAuthRevoked(t *testing.T) {
 }
 
 func TestUnknownRoute404(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	r := a.get("/v1/nada", tn.key)
@@ -207,6 +210,7 @@ func TestUnknownRoute404(t *testing.T) {
 }
 
 func TestBadUUID400(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	r := a.get("/v1/accounts/nao-e-uuid", tn.key)
@@ -219,6 +223,7 @@ func TestBadUUID400(t *testing.T) {
 // --- accounts ----------------------------------------------------------------
 
 func TestAccountsOnlyOwn(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	cadim := a.tenant("cadim", cnpj)
 	beep := a.tenant("beep", "99888777000166")
@@ -243,6 +248,7 @@ func TestAccountsOnlyOwn(t *testing.T) {
 }
 
 func TestCertificateUploadOK(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	pfx, pass := dfetest.NewCert(t, cnpj, t0.AddDate(1, 0, 0))
@@ -260,6 +266,7 @@ func TestCertificateUploadOK(t *testing.T) {
 }
 
 func TestCertificateUploadRefused(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	path := "/v1/accounts/" + tn.account.ID.String() + "/certificate"
@@ -298,6 +305,7 @@ func TestCertificateUploadRefused(t *testing.T) {
 }
 
 func TestCertificateTooBig(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 
@@ -311,6 +319,7 @@ func TestCertificateTooBig(t *testing.T) {
 // A password over the limit is refused as such, not cut and then refused
 // as the wrong password.
 func TestCertificatePasswordTooLong(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	pfx, _ := dfetest.NewCert(t, cnpj, t0.AddDate(1, 0, 0))
@@ -326,6 +335,7 @@ func TestCertificatePasswordTooLong(t *testing.T) {
 }
 
 func TestCertificateUploadMissingField(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 
@@ -344,6 +354,7 @@ func TestCertificateUploadMissingField(t *testing.T) {
 }
 
 func TestAccountJSONNeverHasSecrets(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	a.upload(tn.account, t0.AddDate(1, 0, 0))
@@ -358,6 +369,7 @@ func TestAccountJSONNeverHasSecrets(t *testing.T) {
 }
 
 func TestExpiringSoon(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	a.upload(tn.account, t0.AddDate(0, 0, 10))
@@ -376,6 +388,7 @@ func TestExpiringSoon(t *testing.T) {
 }
 
 func TestPauseResume(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	base := "/v1/accounts/" + tn.account.ID.String()
@@ -399,6 +412,7 @@ func TestPauseResume(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	path := "/v1/accounts/" + tn.account.ID.String() + "/scan"
@@ -487,6 +501,7 @@ type noteList struct {
 }
 
 func TestNotesCursor(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	for i := range 3 {
@@ -514,6 +529,7 @@ func TestNotesCursor(t *testing.T) {
 }
 
 func TestNotesBadLimit(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	base := "/v1/accounts/" + tn.account.ID.String() + "/notes"
@@ -527,6 +543,7 @@ func TestNotesBadLimit(t *testing.T) {
 }
 
 func TestNotesOtherClient(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	cadim := a.tenant("cadim", cnpj)
 	beep := a.tenant("beep", "99888777000166")
@@ -547,6 +564,7 @@ func TestNotesOtherClient(t *testing.T) {
 }
 
 func TestNoteXMLFullOverSummary(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	summary := a.addNote(tn.account, key[:43]+"5", 1, false)
@@ -564,6 +582,7 @@ func TestNoteXMLFullOverSummary(t *testing.T) {
 }
 
 func TestNoteEvents(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 	n := a.addNote(tn.account, key, 1, false)
@@ -592,6 +611,7 @@ func TestNoteEvents(t *testing.T) {
 }
 
 func TestManualCiencia(t *testing.T) {
+	t.Parallel()
 	a := setup(t)
 	tn := a.tenant("cadim", cnpj)
 

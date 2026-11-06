@@ -24,6 +24,7 @@ func newBox(t *testing.T) *crypt.Box {
 }
 
 func TestUploadOK(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	box := newBox(t)
@@ -59,6 +60,7 @@ func TestUploadOK(t *testing.T) {
 }
 
 func TestUploadStoredSealed(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -82,6 +84,7 @@ func TestUploadStoredSealed(t *testing.T) {
 }
 
 func TestUploadMismatch(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -107,6 +110,7 @@ func TestUploadMismatch(t *testing.T) {
 }
 
 func TestUploadExpired(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -123,6 +127,7 @@ func TestUploadExpired(t *testing.T) {
 }
 
 func TestUploadWrongPassword(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -139,6 +144,7 @@ func TestUploadWrongPassword(t *testing.T) {
 }
 
 func TestOpenCertificateOtherKey(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()

@@ -10,6 +10,7 @@ import (
 )
 
 func TestPanicIs500(t *testing.T) {
+	t.Parallel()
 	s := &server{Deps: Deps{Log: slog.New(slog.NewTextHandler(io.Discard, nil))}}
 	h := s.recover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") }))
 

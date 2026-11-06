@@ -8,6 +8,7 @@ import (
 )
 
 func TestCanRequestCiencia(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		ciencia note.Ciencia

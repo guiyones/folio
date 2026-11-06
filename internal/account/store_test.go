@@ -37,6 +37,7 @@ func newAccount(clientID uuid.UUID) account.NewAccount {
 }
 
 func TestCreate(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -60,6 +61,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateInvalid(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	client := newClient(t, db, "cadim")
@@ -83,6 +85,7 @@ func TestCreateInvalid(t *testing.T) {
 }
 
 func TestCreateDuplicate(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -103,6 +106,7 @@ func TestCreateDuplicate(t *testing.T) {
 }
 
 func TestCreateUnknownClient(t *testing.T) {
+	t.Parallel()
 	st := account.NewStore(dbtest.New(t))
 
 	_, err := st.Create(context.Background(), newAccount(uuid.NewV7()), now)
@@ -112,6 +116,7 @@ func TestCreateUnknownClient(t *testing.T) {
 }
 
 func TestForClient(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -136,6 +141,7 @@ func TestForClient(t *testing.T) {
 }
 
 func TestLinkClient(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -168,6 +174,7 @@ func TestLinkClient(t *testing.T) {
 }
 
 func TestSetPaused(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -190,6 +197,7 @@ func TestSetPaused(t *testing.T) {
 }
 
 func TestCertificate(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
@@ -234,6 +242,7 @@ func TestCertificate(t *testing.T) {
 }
 
 func TestWithLock(t *testing.T) {
+	t.Parallel()
 	db := dbtest.New(t)
 	st := account.NewStore(db)
 	ctx := context.Background()
