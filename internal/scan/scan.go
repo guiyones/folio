@@ -292,8 +292,7 @@ func (s *Scanner) apply(ctx context.Context, tx account.LockedTx, docID uuid.UUI
 			log.Info("event on an issued note kept out of the notes", "nsu", d.NSU, "type", e.Type)
 			return nil
 		}
-		id := docID
-		return s.Notes.ApplyEvent(ctx, tx, a.ID, note.NewEvent{Event: e, Origin: note.OriginSEFAZ, DocID: &id})
+		return s.Notes.ApplyEvent(ctx, tx, a.ID, note.NewEvent{Event: e, Origin: note.OriginSEFAZ, DocID: &docID})
 	}
 }
 

@@ -26,7 +26,7 @@
 | 20 | revisão | melhoria | P | `internal/account/lock.go:44` A variável `errConv` é um desvio só para ligar `found`. | feito |
 | 21 | revisão | melhoria | P | `internal/httpapi/accounts.go:208` `readCertificateForm` devolve 4 valores com `tooBig bool`; usar o sentinela `errTooBig`. | feito |
 | 22 | revisão | melhoria | P | `internal/note/store.go:263` Struct anônima igual a `Event` copiada campo a campo; usar `Event(r)`. | feito |
-| 23 | revisão | melhoria | P | `internal/scan/scan.go:304` `id := docID` só para tirar o endereço; usar `&docID`. | aberto |
+| 23 | revisão | melhoria | P | `internal/scan/scan.go:304` `id := docID` só para tirar o endereço; usar `&docID`. | feito |
 | 24 | revisão | melhoria | P | `internal/apiclient/store.go:74` `plain[:prefixLen]` repete `Prefix()`. | aberto |
 | 25 | revisão | melhoria | P | `internal/platform/crypt/box.go:58` Valor padrão com `if`; usar `cmp.Or`. | aberto |
 | 26 | revisão | melhoria | P | `internal/note/note.go:7` O comentário cita `LockDue`, que não existe (o certo é `Claim`/`Lock`). | feito |
