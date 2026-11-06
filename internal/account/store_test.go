@@ -9,7 +9,9 @@ import (
 	"uuid"
 
 	"github.com/guiyones/folio/dfe"
+	"github.com/guiyones/folio/dfe/dfetest"
 	"github.com/guiyones/folio/internal/account"
+	"github.com/guiyones/folio/internal/platform/crypt"
 	"github.com/guiyones/folio/internal/platform/db/dbtest"
 	"github.com/jmoiron/sqlx"
 )
@@ -281,5 +283,45 @@ func TestWithLock(t *testing.T) {
 
 	if err := st.WithLock(ctx, uuid.NewV7(), func(account.LockedTx) error { return nil }); !errors.Is(err, account.ErrNotFound) {
 		t.Errorf("unknown account: err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCanScan(t *testing.T) {
+	t.Parallel()
+	db := dbtest.New(t)
+	st := account.NewStore(db)
+	ctx := context.Background()
+
+	a, err := st.Create(ctx, newAccount(newClient(t, db, "cadim")), now)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if err := st.CanScan(ctx, a, now); !errors.Is(err, account.ErrNoCertificate) {
+		t.Errorf("without certificate: err = %v, want ErrNoCertificate", err)
+	}
+
+	a.Paused = true
+	if err := st.CanScan(ctx, a, now); !errors.Is(err, account.ErrPaused) {
+		t.Errorf("paused: err = %v, want ErrPaused", err)
+	}
+	a.Paused = false
+
+	box, err := crypt.NewBox("k1", bytes.Repeat([]byte{3}, 32))
+	if err != nil {
+		t.Fatalf("box: %v", err)
+	}
+	pfx, pass := dfetest.NewCert(t, a.CNPJ, now.AddDate(1, 0, 0))
+	if _, err := account.UploadCertificate(ctx, st, box, a, pfx, pass, now); err != nil {
+		t.Fatalf("certificate: %v", err)
+	}
+
+	a.NextScanAt = now.Add(time.Minute)
+	if err := st.CanScan(ctx, a, now); !errors.Is(err, account.ErrTooSoon) {
+		t.Errorf("inside the hour: err = %v, want ErrTooSoon", err)
+	}
+	a.NextScanAt = now
+	if err := st.CanScan(ctx, a, now); err != nil {
+		t.Errorf("due: err = %v", err)
 	}
 }

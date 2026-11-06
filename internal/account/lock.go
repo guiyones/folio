@@ -55,6 +55,22 @@ func (s *Store) Claim(ctx context.Context, now, reserve time.Time) (a Account, f
 	return a, found, nil
 }
 
+// CanScan says whether the scan may query SEFAZ for a now: the same
+// conditions Claim checks in SQL. It returns ErrPaused, ErrNoCertificate or
+// ErrTooSoon (the account's NextScanAt says when it may run).
+func (s *Store) CanScan(ctx context.Context, a Account, now time.Time) error {
+	if a.Paused {
+		return ErrPaused
+	}
+	if _, err := s.Certificate(ctx, a.ID); err != nil {
+		return err
+	}
+	if a.NextScanAt.After(now) {
+		return ErrTooSoon
+	}
+	return nil
+}
+
 // LockedTx is a transaction that holds the lock of one account. Writes to
 // the notes of an account take one, and only WithLock makes it, so a write
 // cannot forget the lock that keeps the change cursor in commit order.

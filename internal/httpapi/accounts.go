@@ -109,17 +109,16 @@ func (s *server) RequestScan(ctx context.Context, req gen.RequestScanRequestObje
 	if err != nil || !found {
 		return gen.RequestScan404JSONResponse{NotFoundJSONResponse: notFound("conta")}, err
 	}
-	if a.Paused {
-		return gen.RequestScan409JSONResponse{ConflictJSONResponse: gen.ConflictJSONResponse(errorBody("a conta está pausada"))}, nil
+	conflict := func(msg string) gen.RequestScanResponseObject {
+		return gen.RequestScan409JSONResponse{ConflictJSONResponse: gen.ConflictJSONResponse(errorBody(msg))}
 	}
-	if _, err := s.Accounts.Certificate(ctx, a.ID); errors.Is(err, account.ErrNoCertificate) {
-		return gen.RequestScan409JSONResponse{ConflictJSONResponse: gen.ConflictJSONResponse(errorBody("a conta não tem certificado"))}, nil
-	} else if err != nil {
-		return nil, err
-	}
-
 	now := s.Now()
-	if a.NextScanAt.After(now) {
+	switch err := s.Accounts.CanScan(ctx, a, now); {
+	case errors.Is(err, account.ErrPaused):
+		return conflict(account.ErrPaused.Error()), nil
+	case errors.Is(err, account.ErrNoCertificate):
+		return conflict(account.ErrNoCertificate.Error()), nil
+	case errors.Is(err, account.ErrTooSoon):
 		wait := int(math.Ceil(a.NextScanAt.Sub(now).Seconds()))
 		return gen.RequestScan429JSONResponse{
 			Body: gen.ScanTooSoon{
@@ -128,6 +127,8 @@ func (s *server) RequestScan(ctx context.Context, req gen.RequestScanRequestObje
 			},
 			Headers: gen.RequestScan429ResponseHeaders{RetryAfter: &wait},
 		}, nil
+	case err != nil:
+		return nil, err
 	}
 
 	return gen.RequestScan202JSONResponse{NextScanAt: a.NextScanAt}, nil

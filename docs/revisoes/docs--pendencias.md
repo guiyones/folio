@@ -39,6 +39,6 @@ atualizado: 2026-11-05 22:45
 35. [feito]  Testes de account/note/scan/httpapi sem `t.Parallel()`, embora cada u
 36. [feito] O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover
 37. [depois] O layout não segue app/business/foundation. Não migrar agora; o primei
-38. [depois] Sobra do #5: RequestScan ainda repete no handler a condição do Claim
+38. [feito] Sobra do #5: RequestScan ainda repete no handler a condição do Claim
 39. [feito] Upload acima de 2 MB responde 401 em vez de 413
 40. [depois] httpapi_test.go:143 Body.Close sem comentário

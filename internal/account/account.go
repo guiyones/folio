@@ -17,6 +17,8 @@ var (
 	ErrUnknownClient = errors.New("cliente da API não encontrado")
 	ErrNoCertificate = errors.New("a conta não tem certificado")
 	ErrInvalid       = errors.New("conta inválida")
+	ErrPaused        = errors.New("a conta está pausada")
+	ErrTooSoon       = errors.New("a SEFAZ ainda não pode ser consultada de novo")
 )
 
 // Account is a CNPJ that folio queries in one SEFAZ environment. UltNSU is
