@@ -42,3 +42,5 @@
 | 36 | revisão | melhoria | P | `internal/httpapi/httpapi.go:31` O limite de "vence em breve" está duplicado com `scan.CertWarn`; mover para `account`. | aberto |
 | 37 | revisão | melhoria | G | `internal` O layout não segue app/business/foundation. Não migrar agora; o primeiro passo é o #5. | aberto |
 | 38 | revisão | melhoria | P | `internal/httpapi/accounts.go:105` Sobra do #5: `RequestScan` ainda repete no handler a condição do `Claim` (pausada, certificado, `next_scan_at`). | aberto |
+| 39 | revisão | bug | M | `internal/httpapi` Upload com corpo acima de 2 MB (ex.: pfx grande) responde 401 "security requirements failed: reading failed: http: request body too large", porque o validador OpenAPI lê o corpo antes do handler. Deveria ser 413. | aberto |
+| 40 | revisão | melhoria | P | `internal/httpapi/httpapi_test.go:143` `defer resp.Body.Close()` sem comentário do porquê. | aberto |
