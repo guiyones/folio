@@ -139,12 +139,3 @@ func WithTx(ctx context.Context, db *sqlx.DB, fn func(tx *sqlx.Tx) error) error 
 	}
 	return nil
 }
-
-// Rollback rolls tx back, ignoring a transaction that is already done. It is
-// meant for a defer that runs after Commit.
-func Rollback(tx *sqlx.Tx) error {
-	if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-		return fmt.Errorf("rolling back: %w", err)
-	}
-	return nil
-}
