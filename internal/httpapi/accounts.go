@@ -17,6 +17,9 @@ import (
 // maxPFX bounds an uploaded certificate; a real A1 is a few KB.
 const maxPFX = 1 << 20
 
+// errTooBig says the upload passed maxPFX or the request body limit.
+var errTooBig = errors.New("o certificado passa de 1 MB")
+
 func (s *server) ListAccounts(ctx context.Context, _ gen.ListAccountsRequestObject) (gen.ListAccountsResponseObject, error) {
 	accounts, err := s.Accounts.ListForClient(ctx, client(ctx).ID)
 	if err != nil {
@@ -53,9 +56,9 @@ func (s *server) UploadCertificate(ctx context.Context, req gen.UploadCertificat
 		return gen.UploadCertificate404JSONResponse{NotFoundJSONResponse: notFound("conta")}, err
 	}
 
-	pfx, password, tooBig, err := readCertificateForm(req)
-	if tooBig {
-		return gen.UploadCertificate413JSONResponse{TooLargeJSONResponse: gen.TooLargeJSONResponse(errorBody("o certificado passa de 1 MB"))}, nil
+	pfx, password, err := readCertificateForm(req)
+	if errors.Is(err, errTooBig) {
+		return gen.UploadCertificate413JSONResponse{TooLargeJSONResponse: gen.TooLargeJSONResponse(errorBody(errTooBig.Error()))}, nil
 	}
 	if err != nil {
 		return gen.UploadCertificate400JSONResponse{BadRequestJSONResponse: gen.BadRequestJSONResponse(errorBody(err.Error()))}, nil
@@ -204,10 +207,11 @@ func certificateView(sc account.StoredCert, now time.Time) gen.Certificate {
 	}
 }
 
-// readCertificateForm reads the pfx and password parts of the upload.
-func readCertificateForm(req gen.UploadCertificateRequestObject) (pfx []byte, password string, tooBig bool, err error) {
+// readCertificateForm reads the pfx and password parts of the upload. A
+// file over the limit gives errTooBig.
+func readCertificateForm(req gen.UploadCertificateRequestObject) (pfx []byte, password string, err error) {
 	if req.Body == nil {
-		return nil, "", false, errors.New("envie um multipart/form-data com pfx e password")
+		return nil, "", errors.New("envie um multipart/form-data com pfx e password")
 	}
 
 	var gotPFX, gotPass bool
@@ -218,17 +222,17 @@ func readCertificateForm(req gen.UploadCertificateRequestObject) (pfx []byte, pa
 		}
 		var maxErr *http.MaxBytesError
 		if errors.As(err, &maxErr) {
-			return nil, "", true, nil
+			return nil, "", errTooBig
 		}
 		if err != nil {
-			return nil, "", false, fmt.Errorf("lendo o formulário: %w", err)
+			return nil, "", fmt.Errorf("lendo o formulário: %w", err)
 		}
 
 		switch part.FormName() {
 		case "pfx":
 			pfx, err = io.ReadAll(io.LimitReader(part, maxPFX+1))
 			if errors.As(err, &maxErr) || len(pfx) > maxPFX {
-				return nil, "", true, nil
+				return nil, "", errTooBig
 			}
 			gotPFX = true
 		case "password":
@@ -238,14 +242,14 @@ func readCertificateForm(req gen.UploadCertificateRequestObject) (pfx []byte, pa
 			gotPass = true
 		}
 		if err != nil {
-			return nil, "", false, fmt.Errorf("lendo o formulário: %w", err)
+			return nil, "", fmt.Errorf("lendo o formulário: %w", err)
 		}
 	}
 
 	if !gotPFX || !gotPass {
-		return nil, "", false, errors.New("o formulário precisa dos campos pfx e password")
+		return nil, "", errors.New("o formulário precisa dos campos pfx e password")
 	}
-	return pfx, password, false, nil
+	return pfx, password, nil
 }
 
 func notFound(what string) gen.NotFoundJSONResponse {
