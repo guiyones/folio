@@ -5,7 +5,7 @@ services:
     image: postgres:18-alpine
     container_name: folio-db
     ports:
-      - "${FOLIO_DB_PORT:-5452}:5432"
+      - "127.0.0.1:${FOLIO_DB_PORT:-5452}:5432" # dev password; reachable only from this machine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
