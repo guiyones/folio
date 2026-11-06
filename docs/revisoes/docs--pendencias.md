@@ -1,6 +1,6 @@
 # Revisão guiada: docs/pendencias.md
 hash: 5e41b45225491571a9b3582fe999c7b7d0d6756d
-atualizado: 2026-11-05 21:52
+atualizado: 2026-11-05 21:59
 
 1. [feito] Se a API não sobe (porta ocupada), o processo fica vivo sem API e com 
 2. [feito] Erro de `connect` volta sem o id da conta, e o log não diz qual conta 
@@ -8,25 +8,25 @@ atualizado: 2026-11-05 21:52
 4. [feito] Nenhum teste cobre `connect` falhando por motivo que não é vencimento 
 5. [feito] A regra de quem pode pedir a Ciência, a transação e o lock ficam no ha
 6. [feito] A regra "escrita em notas sob o lock da conta" é garantida só por quem
-7. [pendente] Linha reescreve `findDSig(root, "Signature")` à mão; o find por Id apa
-8. [pendente] `decodeChild` com `local==""` muda de modo; a mensagem sai sem o nome.
-9. [pendente] `utf16.Encode` sobra depois de recusar `r > 0xffff`; tirar o import. 
-10. [pendente] O `for` com `break` esconde a regra de tentar a senha vazia como nil; 
-11. [pendente] O `switch` liga Duplicate e um `if` logo abaixo retorna; `TrimSpace` é
-12. [pendente] O helper `has` tem 1 uso e o mapa é consultado 2x. 
-13. [pendente] `accountAndClient` tem 1 chamador; chamar `parseID` direto. 
-14. [pendente] `writeFile` tem 1 uso e só repassa `os.WriteFile`. 
-15. [pendente] O `if DhResp != ""` sobra; `time.Parse` já falha com vazio. 
-16. [pendente] `db.Rollback` não tem chamador; apagar. 
-17. [pendente] `apiclient.Store.ByID` não tem chamador; apagar. 
-18. [pendente] O padrão "RowsAffected, n==0 → erro" aparece 4x (account, note 2x, api
-19. [pendente] `parseID(s, isNew)` só repassa `isNew`; virar `parseDocID(s)`. 
-20. [pendente] A variável `errConv` é um desvio só para ligar `found`. 
-21. [pendente] `readCertificateForm` devolve 4 valores com `tooBig bool`; usar o sent
-22. [pendente] Struct anônima igual a `Event` copiada campo a campo; usar `Event(r)`.
-23. [pendente] `id := docID` só para tirar o endereço; usar `&docID`. 
-24. [pendente] `plain[:prefixLen]` repete `Prefix()`. 
-25. [pendente] Valor padrão com `if`; usar `cmp.Or`. 
+7. [feito] Linha reescreve `findDSig(root, "Signature")` à mão; o find por Id apa
+8. [feito] `decodeChild` com `local==""` muda de modo; a mensagem sai sem o nome.
+9. [feito] `utf16.Encode` sobra depois de recusar `r > 0xffff`; tirar o import. 
+10. [feito] O `for` com `break` esconde a regra de tentar a senha vazia como nil; 
+11. [feito] O `switch` liga Duplicate e um `if` logo abaixo retorna; `TrimSpace` é
+12. [feito] O helper `has` tem 1 uso e o mapa é consultado 2x. 
+13. [feito] `accountAndClient` tem 1 chamador; chamar `parseID` direto. 
+14. [feito] `writeFile` tem 1 uso e só repassa `os.WriteFile`. 
+15. [feito] O `if DhResp != ""` sobra; `time.Parse` já falha com vazio. 
+16. [feito] `db.Rollback` não tem chamador; apagar. 
+17. [feito] `apiclient.Store.ByID` não tem chamador; apagar. 
+18. [feito] O padrão "RowsAffected, n==0 → erro" aparece 4x (account, note 2x, api
+19. [feito] `parseID(s, isNew)` só repassa `isNew`; virar `parseDocID(s)`. 
+20. [feito] A variável `errConv` é um desvio só para ligar `found`. 
+21. [feito] `readCertificateForm` devolve 4 valores com `tooBig bool`; usar o sent
+22. [feito] Struct anônima igual a `Event` copiada campo a campo; usar `Event(r)`.
+23. [feito] `id := docID` só para tirar o endereço; usar `&docID`. 
+24. [feito] `plain[:prefixLen]` repete `Prefix()`. 
+25. [feito] Valor padrão com `if`; usar `cmp.Or`. 
 26. [feito] O comentário cita `LockDue`, que não existe (o certo é `Claim`/`Lock`)
 27. [pendente] Erro de `KindOf` descartado sem comentário; o schema real some. 
 28. [pendente] (e consulta, serve) `-h` sai como "erro: flag: help requested", com ex
