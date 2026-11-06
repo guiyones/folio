@@ -41,10 +41,12 @@ func (s *Store) Claim(ctx context.Context, now, reserve time.Time) (a Account, f
 			return fmt.Errorf("reserving the next scan: %w", db.Map(err))
 		}
 
-		var errConv error
-		a, errConv = row.toAccount()
-		found = errConv == nil
-		return errConv
+		claimed, err := row.toAccount()
+		if err != nil {
+			return err
+		}
+		a, found = claimed, true
+		return nil
 	})
 	if err != nil {
 		return Account{}, false, err

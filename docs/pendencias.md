@@ -23,7 +23,7 @@
 | 17 | revisão | melhoria | P | `internal/apiclient/store.go:49` `apiclient.Store.ByID` não tem chamador; apagar. | feito |
 | 18 | revisão | melhoria | M | `internal/account/store.go:327` O padrão "RowsAffected, n==0 → erro" aparece 4x (account, note 2x, apiclient); criar `db.MustAffect(res, none)`. | feito |
 | 19 | revisão | melhoria | P | `internal/note/store.go:349` `parseID(s, isNew)` só repassa `isNew`; virar `parseDocID(s)`. | feito |
-| 20 | revisão | melhoria | P | `internal/account/lock.go:44` A variável `errConv` é um desvio só para ligar `found`. | aberto |
+| 20 | revisão | melhoria | P | `internal/account/lock.go:44` A variável `errConv` é um desvio só para ligar `found`. | feito |
 | 21 | revisão | melhoria | P | `internal/httpapi/accounts.go:208` `readCertificateForm` devolve 4 valores com `tooBig bool`; usar o sentinela `errTooBig`. | aberto |
 | 22 | revisão | melhoria | P | `internal/note/store.go:263` Struct anônima igual a `Event` copiada campo a campo; usar `Event(r)`. | aberto |
 | 23 | revisão | melhoria | P | `internal/scan/scan.go:304` `id := docID` só para tirar o endereço; usar `&docID`. | aberto |
