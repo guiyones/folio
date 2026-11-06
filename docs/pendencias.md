@@ -34,7 +34,7 @@
 | 28 | revisão | melhoria | P | `cmd/folio/admin.go:63` (e consulta, serve) `-h` sai como "erro: flag: help requested", com exit 1. | feito |
 | 29 | revisão | melhoria | P | `dfe/dfetest/dfetest_test.go:69` `resp.Body.Close()` sem checar e sem comentário. | feito |
 | 30 | revisão | melhoria | P | `zarf/compose/docker_compose.yaml:7` Postgres de dev escuta em todas as interfaces com postgres/postgres; publicar só em 127.0.0.1. | feito |
-| 31 | revisão | melhoria | P | `internal/scan/scan.go:351` `errors.Join` em vez de `%w`; a mensagem sai em 2 linhas. | aberto |
+| 31 | revisão | melhoria | P | `internal/scan/scan.go:351` `errors.Join` em vez de `%w`; a mensagem sai em 2 linhas. | feito |
 | 32 | revisão | melhoria | P | `internal/note/store.go:249` Erro de `KindOf` volta cru, sem operação nem noteID. | aberto |
 | 33 | revisão | melhoria | P | `internal/httpapi/accounts.go:234` Senha com mais de 1024 bytes é truncada e vira 422 enganoso; `MaxBytesError` na parte da senha cai em 400. | aberto |
 | 34 | revisão | melhoria | P | `internal/platform/db/dbtest/dbtest.go:56` `t.Fatalf` antes do `t.Cleanup` deixa a conexão admin aberta e o banco sem DROP. | aberto |

@@ -11,7 +11,6 @@ package scan
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -335,7 +334,7 @@ func (s *Scanner) ciencia(ctx context.Context, sefaz SEFAZ, a account.Account, l
 			return s.Notes.CienciaSent(ctx, tx, n.ID)
 		})
 		if err != nil {
-			return errors.Join(fmt.Errorf("recording ciência of %s", n.Key), err)
+			return fmt.Errorf("recording ciência of %s: %w", n.Key, err)
 		}
 	}
 	return nil
