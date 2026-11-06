@@ -60,7 +60,7 @@ func (s *Store) CreateKey(ctx context.Context, clientID uuid.UUID, now time.Time
 	INSERT INTO api_keys (id, client_id, hash, prefix, created_at)
 	VALUES ($1, $2, $3, $4, $5)`
 
-	if _, err := s.db.ExecContext(ctx, q, uuid.NewV7().String(), clientID.String(), hash[:], plain[:prefixLen], now); err != nil {
+	if _, err := s.db.ExecContext(ctx, q, uuid.NewV7().String(), clientID.String(), hash[:], Prefix(plain), now); err != nil {
 		return "", fmt.Errorf("creating key: %w", mapErr(err))
 	}
 	return plain, nil
