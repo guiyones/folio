@@ -32,7 +32,7 @@
 | 26 | revisão | melhoria | P | `internal/note/note.go:7` O comentário cita `LockDue`, que não existe (o certo é `Claim`/`Lock`). | feito |
 | 27 | revisão | melhoria | P | `cmd/folio/consulta.go:78` Erro de `KindOf` descartado sem comentário; o schema real some. | feito |
 | 28 | revisão | melhoria | P | `cmd/folio/admin.go:63` (e consulta, serve) `-h` sai como "erro: flag: help requested", com exit 1. | feito |
-| 29 | revisão | melhoria | P | `dfe/dfetest/dfetest_test.go:69` `resp.Body.Close()` sem checar e sem comentário. | aberto |
+| 29 | revisão | melhoria | P | `dfe/dfetest/dfetest_test.go:69` `resp.Body.Close()` sem checar e sem comentário. | feito |
 | 30 | revisão | melhoria | P | `zarf/compose/docker_compose.yaml:7` Postgres de dev escuta em todas as interfaces com postgres/postgres; publicar só em 127.0.0.1. | aberto |
 | 31 | revisão | melhoria | P | `internal/scan/scan.go:351` `errors.Join` em vez de `%w`; a mensagem sai em 2 linhas. | aberto |
 | 32 | revisão | melhoria | P | `internal/note/store.go:249` Erro de `KindOf` volta cru, sem operação nem noteID. | aberto |

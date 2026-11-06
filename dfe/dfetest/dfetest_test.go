@@ -66,7 +66,7 @@ func TestServerRequiresClientCert(t *testing.T) {
 
 	noCert := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: srv.Roots}}}
 	if resp, err := noCert.Post(srv.URL, "application/soap+xml", nil); err == nil {
-		resp.Body.Close()
+		resp.Body.Close() // the test fails on the next line anyway; a close error adds nothing
 		t.Fatal("server accepted a client without certificate")
 	}
 
@@ -83,7 +83,7 @@ func TestServerRequiresClientCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("posting with certificate: %v", err)
 	}
-	resp.Body.Close()
+	resp.Body.Close() // the body is not read; the test checks what the server recorded
 
 	reqs := srv.Requests()
 	if len(reqs) != 1 {
