@@ -39,10 +39,7 @@ func SignEnveloped(doc []byte, refID string, cert *Certificate) ([]byte, error) 
 		return nil, err
 	}
 
-	ref := root.find(func(e *element) bool {
-		id, ok := e.attr("Id")
-		return ok && id == refID
-	})
+	ref := findByID(root, refID)
 	if ref == nil {
 		return nil, fmt.Errorf("elemento com Id %q não encontrado", refID)
 	}
@@ -97,7 +94,7 @@ func VerifyEnveloped(doc []byte) error {
 		return err
 	}
 
-	sig := root.find(func(e *element) bool { return e.local == "Signature" && e.uri(e.prefix) == nsDSig })
+	sig := findDSig(root, "Signature")
 	if sig == nil {
 		return errors.New("documento sem Signature")
 	}
@@ -129,10 +126,7 @@ func VerifyEnveloped(doc []byte) error {
 		return fmt.Errorf("Reference URI %q inválida", uri)
 	}
 
-	ref := root.find(func(e *element) bool {
-		id, ok := e.attr("Id")
-		return ok && id == refID
-	})
+	ref := findByID(root, refID)
 	if ref == nil {
 		return fmt.Errorf("elemento com Id %q não encontrado", refID)
 	}
@@ -223,4 +217,12 @@ func decodeChild(parent *element, local string) ([]byte, error) {
 
 func findDSig(e *element, local string) *element {
 	return e.find(func(n *element) bool { return n.local == local && n.uri(n.prefix) == nsDSig })
+}
+
+// findByID returns the first element under e whose Id attribute is id.
+func findByID(e *element, id string) *element {
+	return e.find(func(n *element) bool {
+		v, ok := n.attr("Id")
+		return ok && v == id
+	})
 }
