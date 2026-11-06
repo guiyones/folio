@@ -280,7 +280,7 @@ func (s *Store) Events(ctx context.Context, noteID uuid.UUID) ([]Event, error) {
 
 	events := make([]Event, 0, len(rows))
 	for _, r := range rows {
-		events = append(events, Event{Type: r.Type, Seq: r.Seq, Description: r.Description, At: r.At, Origin: r.Origin, CStat: r.CStat})
+		events = append(events, Event(r))
 	}
 	return events, nil
 }
