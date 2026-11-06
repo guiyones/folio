@@ -254,7 +254,7 @@ func (s *Store) XML(ctx context.Context, noteID uuid.UUID) ([]byte, dfe.Kind, er
 
 	kind, err := dfe.KindOf(row.Schema)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("reading the xml kind of note %s: %w", noteID, err)
 	}
 	return row.XML, kind, nil
 }
