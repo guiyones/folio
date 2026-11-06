@@ -57,6 +57,15 @@ func NewWithURL(t *testing.T) (*sqlx.DB, string) {
 	if err != nil {
 		t.Fatalf("opening admin database: %v", err)
 	}
+	// Each step registers its own cleanup as soon as it succeeds, so a later
+	// t.Fatalf still drops the database and closes the connections. Cleanups
+	// run in reverse: the test database closes, then it is dropped, then the
+	// admin connection closes.
+	t.Cleanup(func() {
+		if err := dbA.Close(); err != nil {
+			t.Errorf("closing admin database: %v", err)
+		}
+	})
 
 	suffix := make([]byte, 4)
 	if _, err := rand.Read(suffix); err != nil {
@@ -67,6 +76,11 @@ func NewWithURL(t *testing.T) (*sqlx.DB, string) {
 	if _, err := dbA.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
 		t.Fatalf("creating database %s: %v", name, err)
 	}
+	t.Cleanup(func() {
+		if _, err := dbA.ExecContext(context.Background(), "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
+			t.Errorf("dropping database %s: %v", name, err)
+		}
+	})
 
 	u, err := url.Parse(admin)
 	if err != nil {
@@ -82,12 +96,6 @@ func NewWithURL(t *testing.T) (*sqlx.DB, string) {
 	t.Cleanup(func() {
 		if err := dbT.Close(); err != nil {
 			t.Errorf("closing database %s: %v", name, err)
-		}
-		if _, err := dbA.ExecContext(context.Background(), "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
-			t.Errorf("dropping database %s: %v", name, err)
-		}
-		if err := dbA.Close(); err != nil {
-			t.Errorf("closing admin database: %v", err)
 		}
 	})
 
