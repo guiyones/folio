@@ -173,10 +173,11 @@ func writeCanonical(b *bytes.Buffer, e, skip *element, rendered map[string]strin
 	// prefix (the default namespace, with an empty prefix, comes first).
 	var prefixes []string
 	for p, uri := range scope {
-		if prev, ok := rendered[p]; ok && prev == uri {
+		prev, ok := rendered[p]
+		if ok && prev == uri {
 			continue
 		}
-		if !has(rendered, p) && p == "" && uri == "" {
+		if !ok && p == "" && uri == "" {
 			continue // xmlns="" at the top says nothing
 		}
 		prefixes = append(prefixes, p)
@@ -222,11 +223,6 @@ func writeCanonical(b *bytes.Buffer, e, skip *element, rendered map[string]strin
 	}
 
 	b.WriteString("</" + qname(e.prefix, e.local) + ">")
-}
-
-func has(m map[string]string, k string) bool {
-	_, found := m[k]
-	return found
 }
 
 func attrURI(e *element, a xml.Attr) string {
